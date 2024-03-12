@@ -1,4 +1,4 @@
-import "../bootstrap";
+require("../bootstrap");
 
 module.exports = {
   define: {
@@ -6,11 +6,12 @@ module.exports = {
     collate: "utf8mb4_bin"
   },
   dialect: process.env.DB_DIALECT || "mysql",
-  timezone: "-03:00",
+  timezone: process.env.DB_TIMEZONE || "-03:00",
   host: process.env.DB_HOST,
-  port: process.env.DB_PORT || 3306,
   database: process.env.DB_NAME,
   username: process.env.DB_USER,
   password: process.env.DB_PASS,
-  logging: process.env.DB_DEBUG === "true"
+  logging: false,
+  seederStorage: "json",
+  seederStoragePath: "sequelizeData.json"
 };

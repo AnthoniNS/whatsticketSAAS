@@ -1,57 +1,71 @@
+/* eslint-disable prefer-template */
+/* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-array-constructor */
 import Mustache from "mustache";
-import Contact from "../models/Contact";
+import Ticket from "../models/Ticket";
 
-export const greeting = (): string => {
-  const greetings = ["Boa madrugada", "Bom dia", "Boa tarde", "Boa noite"];
-  const h = new Date().getHours();
-  // eslint-disable-next-line no-bitwise
-  return greetings[(h / 6) >> 0];
-};
+export const msgsd = (): string => {
 
-export const firstName = (contact?: Contact): string => {
-  if (contact && contact?.name) {
-    const nameArr = contact?.name.split(' ');
-    return nameArr[0];
-  }
-  return '';
-};
-
-export default (body: string, contact: Contact): string => {
   let ms = "";
 
+  const hh = new Date().getHours();
+
+  if (hh >= 6) { ms = "Bom Dia"; }
+  if (hh > 11) { ms = "Boa Tarde"; }
+  if (hh > 17) { ms = "Boa Noite"; }
+  if (hh > 23 || hh < 6) { ms = "Boa Madrugada"; }
+
+  return ms;
+};
+
+export const control = (): string => {
   const Hr = new Date();
 
-  const dd: string = `0${Hr.getDate()}`.slice(-2);
-  const mm: string = `0${Hr.getMonth() + 1}`.slice(-2);
+  const dd: string = ("0" + Hr.getDate()).slice(-2);
+  const mm: string = ("0" + (Hr.getMonth() + 1)).slice(-2);
   const yy: string = Hr.getFullYear().toString();
+
+  const ctrl = yy + mm + dd + "T";
+  return ctrl;
+};
+
+export const date = (): string => {
+  const Hr = new Date();
+
+  const dd: string = ("0" + Hr.getDate()).slice(-2);
+  const mm: string = ("0" + (Hr.getMonth() + 1)).slice(-2);
+  const yy: string = Hr.getFullYear().toString();
+
+  const dates = dd + "-" + mm + "-" + yy;
+  return dates;
+};
+
+export const hour = (): string => {
+  const Hr = new Date();
+
   const hh: number = Hr.getHours();
-  const min: string = `0${Hr.getMinutes()}`.slice(-2);
-  const ss: string = `0${Hr.getSeconds()}`.slice(-2);
+  const min: string = ("0" + Hr.getMinutes()).slice(-2);
+  const ss: string = ("0" + Hr.getSeconds()).slice(-2);
 
-  if (hh >= 6) {
-    ms = "Bom dia";
-  }
-  if (hh > 11) {
-    ms = "Boa tarde";
-  }
-  if (hh > 17) {
-    ms = "Boa noite";
-  }
-  if (hh > 23 || hh < 6) {
-    ms = "Boa madrugada";
-  }
+  const hours = hh + ":" + min + ":" + ss;
+  return hours;
+};
 
-  const protocol = yy + mm + dd + String(hh) + min + ss;
-
-  const hora = `${hh}:${min}:${ss}`;
-
+export default (body: string, ticket?: Ticket): string => {
   const view = {
-    firstName: firstName(contact),
-    name: contact ? contact.name : "",
-    gretting: greeting(),
-    ms,
-    protocol,
-    hora
+    name: ticket ? ticket.contact.name : "",
+    user: ticket ? ticket?.user : "",
+    ticket_id: ticket ? ticket.id : "",
+    ms: msgsd(),
+    hour: hour(),
+    date: date(),
+    queue: ticket ? ticket?.queue?.name : "",
+    connection: ticket ? ticket.whatsapp.name : "",
+    protocol: new Array(
+      control(),
+      ticket ? ticket.id.toString() : ""
+    ).join(""),
   };
+
   return Mustache.render(body, view);
 };

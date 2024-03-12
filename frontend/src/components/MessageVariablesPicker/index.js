@@ -21,12 +21,12 @@ const MessageVariablesPicker = ({ onClick, disabled }) => {
 
     const msgVars = [
         {
-            name: i18n.t("messageVariablesPicker.vars.contactFirstName"),
-            value: "{{firstName}}"
-        },
-        {
             name: i18n.t("messageVariablesPicker.vars.contactName"),
             value: "{{name}} "
+        },
+        {
+            name: i18n.t("messageVariablesPicker.vars.user"),
+            value: "{{user.name}} "
         },
         {
             name: i18n.t("messageVariablesPicker.vars.greeting"),
@@ -44,6 +44,18 @@ const MessageVariablesPicker = ({ onClick, disabled }) => {
             name: i18n.t("messageVariablesPicker.vars.hour"),
             value: "{{hour}} "
         },
+        {
+            name: i18n.t("messageVariablesPicker.vars.ticket_id"),
+            value: "{{ticket_id}} "
+        },
+        {
+            name: i18n.t("messageVariablesPicker.vars.queue"),
+            value: "{{queue}} "
+        },
+        {
+            name: i18n.t("messageVariablesPicker.vars.connection"),
+            value: "{{connection}} "
+        }
     ];
 
     return (

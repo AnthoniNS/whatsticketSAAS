@@ -7,13 +7,11 @@ import UpdateSettingService from "../services/SettingServices/UpdateSettingServi
 import ListSettingsService from "../services/SettingServices/ListSettingsService";
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { companyId } = req.user;
+  if (req.user.profile === "") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
 
-  // if (req.user.profile !== "admin") {
-  //   throw new AppError("ERR_NO_PERMISSION", 403);
-  // }
-
-  const settings = await ListSettingsService({ companyId });
+  const settings = await ListSettingsService();
 
   return res.status(200).json(settings);
 };
@@ -27,16 +25,14 @@ export const update = async (
   }
   const { settingKey: key } = req.params;
   const { value } = req.body;
-  const { companyId } = req.user;
 
   const setting = await UpdateSettingService({
     key,
-    value,
-    companyId
+    value
   });
 
   const io = getIO();
-  io.emit(`company-${companyId}-settings`, {
+  io.emit("settings", {
     action: "update",
     setting
   });

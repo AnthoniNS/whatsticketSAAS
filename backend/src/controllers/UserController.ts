@@ -9,49 +9,41 @@ import ListUsersService from "../services/UserServices/ListUsersService";
 import UpdateUserService from "../services/UserServices/UpdateUserService";
 import ShowUserService from "../services/UserServices/ShowUserService";
 import DeleteUserService from "../services/UserServices/DeleteUserService";
-import SimpleListService from "../services/UserServices/SimpleListService";
 
 type IndexQuery = {
   searchParam: string;
   pageNumber: string;
 };
 
-type ListQueryParams = {
-  companyId: string;
-};
-
 export const index = async (req: Request, res: Response): Promise<Response> => {
   const { searchParam, pageNumber } = req.query as IndexQuery;
-  const { companyId, profile } = req.user;
 
   const { users, count, hasMore } = await ListUsersService({
     searchParam,
-    pageNumber,
-    companyId,
-    profile
+    pageNumber
   });
 
   return res.json({ users, count, hasMore });
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
+  const { users } = await ListUsersService({});
+
+  if (users.length >= Number(process.env.USER_LIMIT)) {
+    throw new AppError("ERR_USER_CREATION_COUNT", 403);
+  }
+
   const {
     email,
     password,
     name,
     profile,
-    companyId: bodyCompanyId,
+    isTricked,
     queueIds,
     whatsappId,
-    greetingMessage,
-    transferMessage
+    startWork,
+    endWork
   } = req.body;
-  let userCompanyId: number | null = null;
-
-  if (req.user !== undefined) {
-    const { companyId: cId } = req.user;
-    userCompanyId = cId;
-  }
 
   if (
     req.url === "/signup" &&
@@ -67,15 +59,15 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     password,
     name,
     profile,
-    companyId: bodyCompanyId || userCompanyId,
+    isTricked,
     queueIds,
     whatsappId,
-    greetingMessage,
-    transferMessage
+    startWork,
+    endWork
   });
 
   const io = getIO();
-  io.emit(`company-${userCompanyId}-user`, {
+  io.emit("user", {
     action: "create",
     user
   });
@@ -87,6 +79,7 @@ export const show = async (req: Request, res: Response): Promise<Response> => {
   const { userId } = req.params;
 
   const user = await ShowUserService(userId);
+
   return res.status(200).json(user);
 };
 
@@ -94,22 +87,25 @@ export const update = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  if (req.user.profile !== "admin") {
+  const { userId } = req.params;
+
+  const newUserId = userId.toString();
+  const sessionUserId = req.user.id.toString();
+
+  if (req.user.profile !== "admin" && sessionUserId !== newUserId) {
     throw new AppError("ERR_NO_PERMISSION", 403);
   }
 
-  const { id: requestUserId, companyId } = req.user;
-  const { userId } = req.params;
+  if (process.env.DEMO === "ON") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
+
   const userData = req.body;
 
-  const user = await UpdateUserService({
-    userData,
-    userId,
-    companyId,
-    requestUserId: +requestUserId
-  });
+  const user = await UpdateUserService({ userData, userId });
+
   const io = getIO();
-  io.emit(`company-${companyId}-user`, {
+  io.emit("user", {
     action: "update",
     user
   });
@@ -122,30 +118,22 @@ export const remove = async (
   res: Response
 ): Promise<Response> => {
   const { userId } = req.params;
-  const { companyId } = req.user;
 
   if (req.user.profile !== "admin") {
     throw new AppError("ERR_NO_PERMISSION", 403);
   }
 
-  await DeleteUserService(userId, companyId);
+  if (process.env.DEMO === "ON") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
+
+  await DeleteUserService(userId);
 
   const io = getIO();
-  io.emit(`company-${companyId}-user`, {
+  io.emit("user", {
     action: "delete",
     userId
   });
 
   return res.status(200).json({ message: "User deleted" });
-};
-
-export const list = async (req: Request, res: Response): Promise<Response> => {
-  const { companyId } = req.query;
-  const { companyId: userCompanyId } = req.user;
-
-  const users = await SimpleListService({
-    companyId: companyId ? +companyId : userCompanyId
-  });
-
-  return res.status(200).json(users);
 };

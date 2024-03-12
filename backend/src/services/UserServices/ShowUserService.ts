@@ -1,7 +1,7 @@
 import User from "../../models/User";
 import AppError from "../../errors/AppError";
 import Queue from "../../models/Queue";
-import Company from "../../models/Company";
+import Whatsapp from "../../models/Whatsapp";
 
 const ShowUserService = async (id: string | number): Promise<User> => {
   const user = await User.findByPk(id, {
@@ -9,20 +9,19 @@ const ShowUserService = async (id: string | number): Promise<User> => {
       "name",
       "id",
       "email",
-      "companyId",
       "profile",
-      "super",
+      "isTricked",
       "tokenVersion",
       "whatsappId",
-      "greetingMessage",
-      "transferMessage"
+      "startWork",
+      "endWork"
     ],
     include: [
       { model: Queue, as: "queues", attributes: ["id", "name", "color"] },
-      { model: Company, as: "company", attributes: ["id", "name"] }
-    ]
+      { model: Whatsapp, as: "whatsapp", attributes: ["id", "name"] }
+    ],
+    order: [[{ model: Queue, as: "queues" }, "name", "asc"]]
   });
-
   if (!user) {
     throw new AppError("ERR_NO_USER_FOUND", 404);
   }

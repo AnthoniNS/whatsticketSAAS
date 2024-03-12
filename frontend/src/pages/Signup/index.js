@@ -1,43 +1,44 @@
-import React, { useState, useEffect } from "react";
-import qs from 'query-string'
+import React, { useState } from "react";
 
 import * as Yup from "yup";
 import { useHistory } from "react-router-dom";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Formik, Form, Field } from "formik";
-import usePlans from "../../hooks/usePlans";
-import Avatar from "@material-ui/core/Avatar";
-import Button from "@material-ui/core/Button";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import TextField from "@material-ui/core/TextField";
-import Link from "@material-ui/core/Link";
-import Grid from "@material-ui/core/Grid";
-import Box from "@material-ui/core/Box";
+
 import {
-	FormControl,
-	InputLabel,
-	MenuItem,
-	Select,
-} from "@material-ui/core";
-import LockOutlinedIcon from "@material-ui/icons/LockOutlined";
-import Typography from "@material-ui/core/Typography";
+	Button,
+	CssBaseline,
+	TextField,
+	Grid,
+	Box,
+	Typography,
+	Container,
+	InputAdornment,
+	IconButton,
+	Link
+} from '@material-ui/core';
+
+import { Visibility, VisibilityOff } from '@material-ui/icons';
+
 import { makeStyles } from "@material-ui/core/styles";
-import Container from "@material-ui/core/Container";
-import logo from "../../assets/logo.png";
+
 import { i18n } from "../../translate/i18n";
 
-import { openApi } from "../../services/api";
+import api from "../../services/api";
 import toastError from "../../errors/toastError";
-import moment from "moment";
+
+import { system } from "../../config.json";
+import logo from '../../assets/logo.png';
+
 const Copyright = () => {
 	return (
 		<Typography variant="body2" color="textSecondary" align="center">
-			{"Copyright © "}
-			<Link color="inherit" href="#">
-				PLW
-			</Link>{" "}
-		   {new Date().getFullYear()}
+			© {new Date().getFullYear()}
+			{" - "}
+			<Link color="inherit" href={system.url || "https://github.com/rtenorioh/Press-Ticket"}>
+				{system.name || "Press Ticket"}
+			</Link>
 			{"."}
 		</Typography>
 	);
@@ -49,10 +50,6 @@ const useStyles = makeStyles(theme => ({
 		display: "flex",
 		flexDirection: "column",
 		alignItems: "center",
-	},
-	avatar: {
-		margin: theme.spacing(1),
-		backgroundColor: theme.palette.secondary.main,
 	},
 	form: {
 		width: "100%",
@@ -75,54 +72,29 @@ const UserSchema = Yup.object().shape({
 const SignUp = () => {
 	const classes = useStyles();
 	const history = useHistory();
-	let companyId = null
 
-	const params = qs.parse(window.location.search)
-	if (params.companyId !== undefined) {
-		companyId = params.companyId
-	}
-
-	const initialState = { name: "", email: "", phone: "", password: "", planId: "", };
-
+	const initialState = { name: "", email: "", password: "" };
+	const [showPassword, setShowPassword] = useState(false);
 	const [user] = useState(initialState);
-	const dueDate = moment().add(3, "day").format();
+
 	const handleSignUp = async values => {
-		Object.assign(values, { recurrence: "MENSAL" });
-		Object.assign(values, { dueDate: dueDate });
-		Object.assign(values, { status: "t" });
-		Object.assign(values, { campaignsEnabled: true });
 		try {
-			await openApi.post("/companies/cadastro", values);
+			await api.post("/auth/signup", values);
 			toast.success(i18n.t("signup.toasts.success"));
 			history.push("/login");
 		} catch (err) {
-			console.log(err);
 			toastError(err);
 		}
 	};
-
-	const [plans, setPlans] = useState([]);
-	const { list: listPlans } = usePlans();
-
-	useEffect(() => {
-		async function fetchData() {
-			const list = await listPlans();
-			setPlans(list);
-		}
-		fetchData();
-	}, []);
-
 
 	return (
 		<Container component="main" maxWidth="xs">
 			<CssBaseline />
 			<div className={classes.paper}>
-				<div>
-					<img style={{ margin: "0 auto", height: "80px", width: "100%" }} src={logo} alt="Whats" />
-				</div>
-				{/*<Typography component="h1" variant="h5">
+				<img alt="logo" src={logo}></img>
+				<Typography component="h1" variant="h5">
 					{i18n.t("signup.title")}
-				</Typography>*/}
+				</Typography>
 				{/* <form className={classes.form} noValidate onSubmit={handleSignUp}> */}
 				<Formik
 					initialValues={user}
@@ -148,7 +120,8 @@ const SignUp = () => {
 										variant="outlined"
 										fullWidth
 										id="name"
-										label="Nome da Empresa"
+										label={i18n.t("signup.form.name")}
+										autoFocus
 									/>
 								</Grid>
 
@@ -163,57 +136,33 @@ const SignUp = () => {
 										error={touched.email && Boolean(errors.email)}
 										helperText={touched.email && errors.email}
 										autoComplete="email"
-										required
 									/>
 								</Grid>
-								
-								<Grid item xs={12}>
-									<Field
-										as={TextField}
-										variant="outlined"
-										fullWidth
-										id="phone"
-										label="Telefone com (DDD)"
-										name="phone"
-										error={touched.email && Boolean(errors.email)}
-										helperText={touched.email && errors.email}
-										autoComplete="phone"
-										required
-									/>
-								</Grid>
-
 								<Grid item xs={12}>
 									<Field
 										as={TextField}
 										variant="outlined"
 										fullWidth
 										name="password"
+										id="password"
+										autoComplete="current-password"
 										error={touched.password && Boolean(errors.password)}
 										helperText={touched.password && errors.password}
 										label={i18n.t("signup.form.password")}
-										type="password"
-										id="password"
-										autoComplete="current-password"
-										required
+										type={showPassword ? 'text' : 'password'}
+										InputProps={{
+											endAdornment: (
+												<InputAdornment position="end">
+													<IconButton
+														aria-label="toggle password visibility"
+														onClick={() => setShowPassword((e) => !e)}
+													>
+														{showPassword ? <VisibilityOff color="secondary" /> : <Visibility color="secondary" />}
+													</IconButton>
+												</InputAdornment>
+											)
+										}}
 									/>
-								</Grid>
-								<Grid item xs={12}>
-									<InputLabel htmlFor="plan-selection">Plano</InputLabel>
-									<Field
-										as={Select}
-										variant="outlined"
-										fullWidth
-										id="plan-selection"
-										label="Plano"
-										name="planId"
-										required
-									>
-										{plans.map((plan, key) => (
-											<MenuItem key={key} value={plan.id}>
-												{plan.name} - Atendentes: {plan.users} - WhatsApp: {plan.connections} - Filas: {plan.queues} - R$ {plan.value}
-											</MenuItem>
-										))}
-									</Field>
 								</Grid>
 							</Grid>
 							<Button
@@ -241,7 +190,7 @@ const SignUp = () => {
 					)}
 				</Formik>
 			</div>
-			<Box mt={5}>{/* <Copyright /> */}</Box>
+			<Box mt={5}><Copyright /></Box>
 		</Container>
 	);
 };

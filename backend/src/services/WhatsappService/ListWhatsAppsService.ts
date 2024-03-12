@@ -1,34 +1,16 @@
-import { FindOptions } from "sequelize/types";
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
 
-interface Request {
-  companyId: number;
-  session?: number | string;
-}
-
-const ListWhatsAppsService = async ({
-  session,
-  companyId
-}: Request): Promise<Whatsapp[]> => {
-  const options: FindOptions = {
-    where: {
-      companyId
-    },
+const ListWhatsAppsService = async (): Promise<Whatsapp[]> => {
+  const whatsapps = await Whatsapp.findAll({
     include: [
       {
         model: Queue,
         as: "queues",
-        attributes: ["id", "name", "color", "greetingMessage"]
+        attributes: ["id", "name", "color", "greetingMessage", "startWork", "endWork", "absenceMessage"]
       }
     ]
-  };
-
-  if (session !== undefined && session == 0) {
-    options.attributes = { exclude: ["session"] };
-  }
-
-  const whatsapps = await Whatsapp.findAll(options);
+  });
 
   return whatsapps;
 };

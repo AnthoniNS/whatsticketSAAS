@@ -1,13 +1,11 @@
 import { Sequelize, Op } from "sequelize";
 import Queue from "../../models/Queue";
-import Company from "../../models/Company";
 import User from "../../models/User";
+import Whatsapp from "../../models/Whatsapp";
 
 interface Request {
   searchParam?: string;
   pageNumber?: string | number;
-  profile?: string;
-  companyId?: number;
 }
 
 interface Response {
@@ -18,8 +16,7 @@ interface Response {
 
 const ListUsersService = async ({
   searchParam = "",
-  pageNumber = "1",
-  companyId
+  pageNumber = "1"
 }: Request): Promise<Response> => {
   const whereCondition = {
     [Op.or]: [
@@ -31,24 +28,29 @@ const ListUsersService = async ({
         )
       },
       { email: { [Op.like]: `%${searchParam.toLowerCase()}%` } }
-    ],
-    companyId: {
-      [Op.eq]: companyId
-    }
+    ]
   };
-
   const limit = 20;
   const offset = limit * (+pageNumber - 1);
 
   const { count, rows: users } = await User.findAndCountAll({
     where: whereCondition,
-    attributes: ["name", "id", "email", "companyId", "profile", "createdAt"],
+    attributes: [
+      "name",
+      "id",
+      "email",
+      "profile",
+      "isTricked",
+      "createdAt",
+      "startWork",
+      "endWork"
+    ],
     limit,
     offset,
     order: [["createdAt", "DESC"]],
     include: [
       { model: Queue, as: "queues", attributes: ["id", "name", "color"] },
-      { model: Company, as: "company", attributes: ["id", "name"] }
+      { model: Whatsapp, as: "whatsapp", attributes: ["id", "name"] }
     ]
   });
 

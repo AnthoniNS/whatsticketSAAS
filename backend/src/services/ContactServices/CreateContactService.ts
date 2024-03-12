@@ -1,8 +1,7 @@
 import AppError from "../../errors/AppError";
 import Contact from "../../models/Contact";
-import ContactCustomField from "../../models/ContactCustomField";
 
-interface ExtraInfo extends ContactCustomField {
+interface ExtraInfo {
   name: string;
   value: string;
 }
@@ -12,7 +11,6 @@ interface Request {
   number: string;
   email?: string;
   profilePicUrl?: string;
-  companyId: number;
   extraInfo?: ExtraInfo[];
 }
 
@@ -20,11 +18,10 @@ const CreateContactService = async ({
   name,
   number,
   email = "",
-  companyId,
   extraInfo = []
 }: Request): Promise<Contact> => {
   const numberExists = await Contact.findOne({
-    where: { number, companyId }
+    where: { number }
   });
 
   if (numberExists) {
@@ -36,8 +33,7 @@ const CreateContactService = async ({
       name,
       number,
       email,
-      extraInfo,
-      companyId
+      extraInfo
     },
     {
       include: ["extraInfo"]

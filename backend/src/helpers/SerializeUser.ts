@@ -1,32 +1,29 @@
 import Queue from "../models/Queue";
-import Company from "../models/Company";
 import User from "../models/User";
-import Setting from "../models/Setting";
+import Whatsapp from "../models/Whatsapp";
 
 interface SerializedUser {
   id: number;
   name: string;
   email: string;
   profile: string;
-  greetingMessage: string;
-  transferMessage: string;
-  companyId: number;
-  company: Company | null;
-  super: boolean;
   queues: Queue[];
+  whatsapp: Whatsapp;
+  startWork: string;
+  endWork: string;
+  isTricked: string;
 }
 
-export const SerializeUser = async (user: User): Promise<SerializedUser> => {
+export const SerializeUser = (user: User): SerializedUser => {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     profile: user.profile,
-    greetingMessage: user.greetingMessage,
-    transferMessage: user.transferMessage,
-    companyId: user.companyId,
-    company: user.company,
-    super: user.super,
-    queues: user.queues
+    queues: user.queues,
+    whatsapp: user.whatsapp,
+    startWork: user.startWork,
+    endWork: user.endWork,
+    isTricked: user.isTricked
   };
 };

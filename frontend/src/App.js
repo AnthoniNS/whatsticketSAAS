@@ -1,112 +1,129 @@
 import React, { useState, useEffect } from "react";
-
-import "react-toastify/dist/ReactToastify.css";
-import { QueryClient, QueryClientProvider } from "react-query";
-
-import { ptBR } from "@material-ui/core/locale";
-import { createTheme, ThemeProvider } from "@material-ui/core/styles";
-import { useMediaQuery } from "@material-ui/core";
-import ColorModeContext from "./layout/themeContext";
-
 import Routes from "./routes";
+import "react-toastify/dist/ReactToastify.css";
 
-const queryClient = new QueryClient();
+import { createTheme, ThemeProvider } from "@material-ui/core/styles";
+import { ptBR } from "@material-ui/core/locale";
+
+import { CssBaseline } from "@material-ui/core";
+
+import api from "./services/api";
+import toastError from "./errors/toastError";
+
+import lightBackground from "./assets/wa-background-light.png";
+import darkBackground from "./assets/wa-background-dark.jpg";
+import { system } from "./config.json";
 
 const App = () => {
-    const [locale, setLocale] = useState();
+  const [locale, setLocale] = useState();
 
-    const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-    const preferredTheme = window.localStorage.getItem("preferredTheme");
-    const [mode, setMode] = useState(preferredTheme ? preferredTheme : prefersDarkMode ? "dark" : "light");
-
-    const colorMode = React.useMemo(
-        () => ({
-            toggleColorMode: () => {
-                setMode((prevMode) => (prevMode === "light" ? "dark" : "light"));
-            },
-        }),
-        []
-    );
-
-    const theme = createTheme(
-        {
-            scrollbarStyles: {
-                "&::-webkit-scrollbar": {
-                    width: '8px',
-                    height: '8px',
-                },
-                "&::-webkit-scrollbar-thumb": {
-                    boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.3)',
-                    backgroundColor: "#00BFFF",
-                },
-            },
-            scrollbarStylesSoft: {
-                "&::-webkit-scrollbar": {
-                    width: "8px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                    backgroundColor: mode === "light" ? "#F3F3F3" : "#333333",
-                },
-            },
-            palette: {
-                type: mode,
-                primary: { main: "#00BFFF" },
-                textPrimary: mode === "light" ? "#00BFFF" : "#FFFFFF",
-                borderPrimary: mode === "light" ? "#00BFFF" : "#FFFFFF",
-                dark: { main: mode === "light" ? "#333333" : "#F3F3F3" },
-                light: { main: mode === "light" ? "#F3F3F3" : "#333333" },
-                tabHeaderBackground: mode === "light" ? "#EEE" : "#333",
-                optionsBackground: mode === "light" ? "#fafafa" : "#333",
-				options: mode === "light" ? "#fafafa" : "#666",
-				fontecor: mode === "light" ? "#00BFFF" : "#fff",
-                fancyBackground: mode === "light" ? "#fafafa" : "#333",
-				bordabox: mode === "light" ? "#eee" : "#333",
-				newmessagebox: mode === "light" ? "#eee" : "#333",
-				inputdigita: mode === "light" ? "#fff" : "#333",
-				contactdrawer: mode === "light" ? "#fff" : "#333",
-				announcements: mode === "light" ? "#ededed" : "#333",
-				login: mode === "light" ? "#fff" : "#1C1C1C",
-				announcementspopover: mode === "light" ? "#fff" : "#333",
-				chatlist: mode === "light" ? "#eee" : "#333",
-				boxlist: mode === "light" ? "#ededed" : "#333",
-				boxchatlist: mode === "light" ? "#ededed" : "#333",
-                total: mode === "light" ? "#fff" : "#222",
-                messageIcons: mode === "light" ? "grey" : "#F3F3F3",
-                inputBackground: mode === "light" ? "#FFFFFF" : "#333",
-                barraSuperior: mode === "light" ? "linear-gradient(to right, #00BFFF, #0000FF, #00008B)" : "#666",
-				boxticket: mode === "light" ? "#EEE" : "#333",
-				campaigntab: mode === "light" ? "#ededed" : "#333",
-            },
-            mode,
+  const lightTheme = createTheme(
+    {
+      scrollbarStyles: {
+        "&::-webkit-scrollbar": {
+          width: "8px",
+          height: "8px",
         },
-        locale
-    );
+        "&::-webkit-scrollbar-thumb": {
+          boxShadow: "inset 0 0 6px rgba(0, 0, 0, 0.3)",
+          backgroundColor: "#e8e8e8",
+        },
+      },
+      palette: {
+        primary: { main: system.color.lightTheme.palette.primary || "#6B62FE" },
+        secondary: { main: system.color.lightTheme.palette.secondary || "#F50057" },
+        toolbar: { main: system.color.lightTheme.toolbar.background || "#6B62FE" },
+        menuItens: { main: system.color.lightTheme.menuItens || "#ffffff" },
+        sub: { main: system.color.lightTheme.sub || "#ffffff" },
+        toolbarIcon: { main: system.color.lightTheme.toolbarIcon || "#ffffff"},
+        divide: { main: system.color.lightTheme.divide || "#E0E0E0" },
+      },
+      backgroundImage: `url(${lightBackground})`,
+    },
+    locale
+  );
 
-    useEffect(() => {
-        const i18nlocale = localStorage.getItem("i18nextLng");
-        const browserLocale =
-            i18nlocale.substring(0, 2) + i18nlocale.substring(3, 5);
-
-        if (browserLocale === "ptBR") {
-            setLocale(ptBR);
+  const darkTheme = createTheme(
+    {
+      overrides: {
+        MuiCssBaseline: {
+          '@global': {
+            body: {
+              backgroundColor: "#080d14",
+            }
+          }
         }
-    }, []);
+      },
+      scrollbarStyles: {
+        "&::-webkit-scrollbar": {
+          width: "8px",
+          height: "8px",
+        },
+        "&::-webkit-scrollbar-thumb": {
+          boxShadow: "inset 0 0 6px rgba(0, 0, 0, 0.3)",
+          backgroundColor: "#ffffff",
+        },
+      },
+      palette: {
+        primary: { main: system.color.darkTheme.palette.primary || "#52d869" },
+        secondary: { main: system.color.darkTheme.palette.secondary || "#ff9100" },
+        toolbar: { main: system.color.darkTheme.toolbar.background || "#52d869" },
+        menuItens: { main: system.color.darkTheme.menuItens || "#181d22" },
+        sub: { main: system.color.darkTheme.sub || "#181d22" },
+        toolbarIcon: { main: system.color.darkTheme.toolbarIcon || "#181d22"},
+        divide: { main: system.color.darkTheme.divide || "#080d14" },
+        background: {
+          default: system.color.darkTheme.palette.background.default || "#080d14",
+          paper: system.color.darkTheme.palette.background.paper || "#181d22",
+        },
+        text: {
+          primary: system.color.darkTheme.palette.text.primary || "#52d869",
+          secondary: system.color.darkTheme.palette.text.secondary || "#ffffff",
+        },
+      },
+      backgroundImage: `url(${darkBackground})`,
+    },
+    locale
+  );
 
-    useEffect(() => {
-        window.localStorage.setItem("preferredTheme", mode);
-    }, [mode]);
+  const [theme, setTheme] = useState("light");
 
+  useEffect(() => {
 
+    const fetchDarkMode = async () => {
+      try {
+        const { data } = await api.get("/settings");
+        const settingIndex = data.filter(s => s.key === 'darkMode');
 
-    return (
-        <ColorModeContext.Provider value={{ colorMode }}>
-            <ThemeProvider theme={theme}>
-                <QueryClientProvider client={queryClient}>
-                    <Routes />
-                </QueryClientProvider>
-            </ThemeProvider>
-        </ColorModeContext.Provider>
-    );
+        if (settingIndex[0].value === "enabled") {
+          setTheme("dark")
+        }
+
+      } catch (err) {
+        setTheme("light")
+        toastError(err);
+      }
+    };
+
+    fetchDarkMode();
+
+  }, []);
+
+  useEffect(() => {
+    const i18nlocale = localStorage.getItem("i18nextLng");
+    const browserLocale = i18nlocale.substring(0, 2) + i18nlocale.substring(3, 5);
+
+    if (browserLocale === "ptBR") {
+      setLocale(ptBR);
+    }
+  }, []);
+
+  return (
+    <ThemeProvider theme={theme === "light" ? lightTheme : darkTheme}>
+      <Routes />
+      <CssBaseline />
+    </ThemeProvider>
+  );
 };
 
 export default App;

@@ -12,23 +12,12 @@ import {
 } from "sequelize-typescript";
 import Contact from "./Contact";
 import Ticket from "./Ticket";
-import Company from "./Company";
-import Queue from "./Queue";
 
 @Table
 class Message extends Model<Message> {
   @PrimaryKey
   @Column
   id: string;
-
-  @Column(DataType.STRING)
-  remoteJid: string;
-
-  @Column(DataType.STRING)
-  participant: string;
-
-  @Column(DataType.STRING)
-  dataJson: string;
 
   @Default(0)
   @Column
@@ -48,7 +37,9 @@ class Message extends Model<Message> {
   @Column(DataType.STRING)
   get mediaUrl(): string | null {
     if (this.getDataValue("mediaUrl")) {
-      return `${process.env.BACKEND_URL}${process.env.PROXY_PORT ?`:${process.env.PROXY_PORT}`:""}/public/${this.getDataValue("mediaUrl")}`;
+      return `${process.env.BACKEND_URL}:${
+        process.env.PROXY_PORT
+      }/public/${this.getDataValue("mediaUrl")}`;
     }
     return null;
   }
@@ -88,20 +79,6 @@ class Message extends Model<Message> {
 
   @BelongsTo(() => Contact, "contactId")
   contact: Contact;
-
-  @ForeignKey(() => Company)
-  @Column
-  companyId: number;
-
-  @BelongsTo(() => Company)
-  company: Company;
-
-  @ForeignKey(() => Queue)
-  @Column
-  queueId: number;
-
-  @BelongsTo(() => Queue)
-  queue: Queue;
 }
 
 export default Message;

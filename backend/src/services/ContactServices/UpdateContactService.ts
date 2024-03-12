@@ -17,25 +17,19 @@ interface ContactData {
 interface Request {
   contactData: ContactData;
   contactId: string;
-  companyId: number;
 }
 
 const UpdateContactService = async ({
   contactData,
-  contactId,
-  companyId
+  contactId
 }: Request): Promise<Contact> => {
   const { email, name, number, extraInfo } = contactData;
 
   const contact = await Contact.findOne({
     where: { id: contactId },
-    attributes: ["id", "name", "number", "email", "companyId", "profilePicUrl"],
+    attributes: ["id", "name", "number", "email", "profilePicUrl"],
     include: ["extraInfo"]
   });
-
-  if (contact?.companyId !== companyId) {
-    throw new AppError("Não é possível alterar registros de outra empresa");
-  }
 
   if (!contact) {
     throw new AppError("ERR_NO_CONTACT_FOUND", 404);
@@ -43,7 +37,7 @@ const UpdateContactService = async ({
 
   if (extraInfo) {
     await Promise.all(
-      extraInfo.map(async (info: any) => {
+      extraInfo.map(async info => {
         await ContactCustomField.upsert({ ...info, contactId: contact.id });
       })
     );

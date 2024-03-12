@@ -1,10 +1,8 @@
-import { Op, literal, fn, col } from "sequelize";
+import { Op } from "sequelize";
 import Tag from "../../models/Tag";
-import Ticket from "../../models/Ticket";
-import TicketTag from "../../models/TicketTag";
+import ContactTag from "../../models/ContactTag";
 
 interface Request {
-  companyId: number;
   searchParam?: string;
   pageNumber?: string | number;
 }
@@ -16,7 +14,6 @@ interface Response {
 }
 
 const ListService = async ({
-  companyId,
   searchParam,
   pageNumber = "1"
 }: Request): Promise<Response> => {
@@ -34,24 +31,11 @@ const ListService = async ({
   }
 
   const { count, rows: tags } = await Tag.findAndCountAll({
-    where: { ...whereCondition, companyId },
+    where: whereCondition,
     limit,
     offset,
     order: [["name", "ASC"]],
-    subQuery: false,
-    include: [{
-      model: TicketTag,
-      as: 'ticketTags',
-      attributes: [],
-      required: false
-    }],
-    attributes: [
-      'id',
-      'name',
-      'color',
-      [fn('count', col('ticketTags.tagId')), 'ticketsCount']
-    ],
-    group: ['Tag.id']
+    include: [{ model: ContactTag, attributes: ["tagId"] }]
   });
 
   const hasMore = count > offset + tags.length;

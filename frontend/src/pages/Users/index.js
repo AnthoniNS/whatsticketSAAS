@@ -1,34 +1,39 @@
 import React, { useState, useEffect, useReducer } from "react";
 import { toast } from "react-toastify";
-
+import openSocket from "../../services/socket-io";
 import { makeStyles } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
-import Button from "@material-ui/core/Button";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
-import IconButton from "@material-ui/core/IconButton";
-import SearchIcon from "@material-ui/icons/Search";
-import TextField from "@material-ui/core/TextField";
-import InputAdornment from "@material-ui/core/InputAdornment";
 
-import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
-import EditIcon from "@material-ui/icons/Edit";
+import {
+  Button,
+  IconButton,
+  InputAdornment,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip
+} from "@material-ui/core";
+
+import {
+  AddCircleOutline,
+  DeleteOutline,
+  Edit,
+  Search
+} from "@material-ui/icons";
 
 import MainContainer from "../../components/MainContainer";
 import MainHeader from "../../components/MainHeader";
 import MainHeaderButtonsWrapper from "../../components/MainHeaderButtonsWrapper";
 import Title from "../../components/Title";
-
-import api from "../../services/api";
-import { i18n } from "../../translate/i18n";
 import TableRowSkeleton from "../../components/TableRowSkeleton";
 import UserModal from "../../components/UserModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
+import api from "../../services/api";
+import { i18n } from "../../translate/i18n";
 import toastError from "../../errors/toastError";
-import { socketConnection } from "../../services/socket";
 
 const reducer = (state, action) => {
   if (action.type === "LOAD_USERS") {
@@ -77,7 +82,8 @@ const reducer = (state, action) => {
 const useStyles = makeStyles((theme) => ({
   mainPaper: {
     flex: 1,
-    padding: theme.spacing(1),
+    padding: theme.spacing(2),
+    margin: theme.spacing(1),
     overflowY: "scroll",
     ...theme.scrollbarStyles,
   },
@@ -122,10 +128,9 @@ const Users = () => {
   }, [searchParam, pageNumber]);
 
   useEffect(() => {
-    const companyId = localStorage.getItem("companyId");
-    const socket = socketConnection({ companyId });
+    const socket = openSocket();
 
-    socket.on(`company-${companyId}-user`, (data) => {
+    socket.on("user", (data) => {
       if (data.action === "update" || data.action === "create") {
         dispatch({ type: "UPDATE_USERS", payload: data.user });
       }
@@ -188,8 +193,7 @@ const Users = () => {
       <ConfirmationModal
         title={
           deletingUser &&
-          `${i18n.t("users.confirmationModal.deleteTitle")} ${
-            deletingUser.name
+          `${i18n.t("users.confirmationModal.deleteTitle")} ${deletingUser.name
           }?`
         }
         open={confirmModalOpen}
@@ -205,7 +209,7 @@ const Users = () => {
         userId={selectedUser && selectedUser.id}
       />
       <MainHeader>
-        <Title>{i18n.t("users.title")}</Title>
+        <Title>{i18n.t("users.title")} ({users.length})</Title>
         <MainHeaderButtonsWrapper>
           <TextField
             placeholder={i18n.t("contacts.searchPlaceholder")}
@@ -215,18 +219,20 @@ const Users = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon style={{ color: "gray" }} />
+                  <Search color="secondary" />
                 </InputAdornment>
               ),
             }}
           />
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleOpenUserModal}
-          >
-            {i18n.t("users.buttons.add")}
-          </Button>
+          <Tooltip title={i18n.t("users.buttons.add")}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleOpenUserModal}
+            >
+              <AddCircleOutline />
+            </Button>
+          </Tooltip>
         </MainHeaderButtonsWrapper>
       </MainHeader>
       <Paper
@@ -237,12 +243,26 @@ const Users = () => {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell align="center">{i18n.t("users.table.name")}</TableCell>
+              <TableCell align="center">
+                {i18n.t("users.table.id")}
+              </TableCell>
+              <TableCell align="center">
+                {i18n.t("users.table.name")}
+              </TableCell>
               <TableCell align="center">
                 {i18n.t("users.table.email")}
               </TableCell>
               <TableCell align="center">
                 {i18n.t("users.table.profile")}
+              </TableCell>
+              <TableCell align="center">
+                {i18n.t("users.table.whatsapp")}
+              </TableCell>
+              <TableCell align="center">
+                {i18n.t("users.table.startWork")}
+              </TableCell>
+              <TableCell align="center">
+                {i18n.t("users.table.endWork")}
               </TableCell>
               <TableCell align="center">
                 {i18n.t("users.table.actions")}
@@ -253,15 +273,19 @@ const Users = () => {
             <>
               {users.map((user) => (
                 <TableRow key={user.id}>
+                  <TableCell align="center">{user.id}</TableCell>
                   <TableCell align="center">{user.name}</TableCell>
                   <TableCell align="center">{user.email}</TableCell>
                   <TableCell align="center">{user.profile}</TableCell>
+                  <TableCell align="center">{user.whatsapp?.name}</TableCell>
+                  <TableCell align="center">{user.startWork}</TableCell>
+                  <TableCell align="center">{user.endWork}</TableCell>
                   <TableCell align="center">
                     <IconButton
                       size="small"
                       onClick={() => handleEditUser(user)}
                     >
-                      <EditIcon />
+                      <Edit color="secondary" />
                     </IconButton>
 
                     <IconButton
@@ -271,12 +295,12 @@ const Users = () => {
                         setDeletingUser(user);
                       }}
                     >
-                      <DeleteOutlineIcon />
+                      <DeleteOutline color="secondary" />
                     </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
-              {loading && <TableRowSkeleton columns={4} />}
+              {loading && <TableRowSkeleton columns={8} />}
             </>
           </TableBody>
         </Table>

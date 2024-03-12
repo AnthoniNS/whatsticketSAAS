@@ -8,15 +8,14 @@ interface QueueData {
   name?: string;
   color?: string;
   greetingMessage?: string;
-  outOfHoursMessage?: string;
-  schedules?: any[];
-  orderQueue?: number;
+  startWork?: string;
+  endWork?: string;
+  absenceMessage?: string;
 }
 
 const UpdateQueueService = async (
   queueId: number | string,
-  queueData: QueueData,
-  companyId: number
+  queueData: QueueData
 ): Promise<Queue> => {
   const { color, name } = queueData;
 
@@ -29,7 +28,7 @@ const UpdateQueueService = async (
         async value => {
           if (value) {
             const queueWithSameName = await Queue.findOne({
-              where: { name: value, id: { [Op.ne]: queueId }, companyId }
+              where: { name: value, id: { [Op.not]: queueId } }
             });
 
             return !queueWithSameName;
@@ -52,7 +51,7 @@ const UpdateQueueService = async (
         async value => {
           if (value) {
             const queueWithSameColor = await Queue.findOne({
-              where: { color: value, id: { [Op.ne]: queueId }, companyId }
+              where: { color: value, id: { [Op.not]: queueId } }
             });
             return !queueWithSameColor;
           }
@@ -63,15 +62,11 @@ const UpdateQueueService = async (
 
   try {
     await queueSchema.validate({ color, name });
-  } catch (err: any) {
+  } catch (err) {
     throw new AppError(err.message);
   }
 
-  const queue = await ShowQueueService(queueId, companyId);
-
-  if (queue.companyId !== companyId) {
-    throw new AppError("Não é permitido alterar registros de outra empresa");
-  }
+  const queue = await ShowQueueService(queueId);
 
   await queue.update(queueData);
 

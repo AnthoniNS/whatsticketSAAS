@@ -1,40 +1,18 @@
 import Whatsapp from "../../models/Whatsapp";
 import AppError from "../../errors/AppError";
 import Queue from "../../models/Queue";
-import QueueOption from "../../models/QueueOption";
-import { FindOptions } from "sequelize/types";
-import Prompt from "../../models/Prompt";
 
-const ShowWhatsAppService = async (
-  id: string | number,
-  companyId: number,
-  session?: any
-): Promise<Whatsapp> => {
-  const findOptions: FindOptions = {
+const ShowWhatsAppService = async (id: string | number): Promise<Whatsapp> => {
+  const whatsapp = await Whatsapp.findByPk(id, {
     include: [
       {
         model: Queue,
         as: "queues",
-        attributes: ["id", "name", "color", "greetingMessage"],
-        include: [{ model: QueueOption, as: "options" }]
-      },
-      {
-        model: Prompt,
-        as: "prompt",
+        attributes: ["id", "name", "color", "greetingMessage", "startWork", "endWork", "absenceMessage"]
       }
     ],
-    order: [["queues", "orderQueue", "ASC"]]
-  };
-
-  if (session !== undefined && session == 0) {
-    findOptions.attributes = { exclude: ["session"] };
-  }
-
-  const whatsapp = await Whatsapp.findByPk(id, findOptions);
-
-  if (whatsapp?.companyId !== companyId) {
-    throw new AppError("Não é possível acessar registros de outra empresa");
-  }
+    order: [["queues", "name", "ASC"]]
+  });
 
   if (!whatsapp) {
     throw new AppError("ERR_NO_WAPP_FOUND", 404);

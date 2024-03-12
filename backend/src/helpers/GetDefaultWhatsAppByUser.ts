@@ -6,11 +6,13 @@ const GetDefaultWhatsAppByUser = async (
   userId: number
 ): Promise<Whatsapp | null> => {
   const user = await User.findByPk(userId, {include: ["whatsapp"]});
-  if( user === null || !user.whatsapp) {
+  if( user === null ) {
     return null;
   }
 
-  logger.info(`Found whatsapp linked to user '${user.name}' is '${user.whatsapp.name}'.`);
+  if(user.whatsapp !== null) {
+    logger.info(`Found whatsapp linked to user '${user.name}' is '${user.whatsapp.name}'.`);
+  }
 
   return user.whatsapp;
 };

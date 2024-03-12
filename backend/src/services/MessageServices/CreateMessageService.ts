@@ -12,19 +12,15 @@ interface MessageData {
   read?: boolean;
   mediaType?: string;
   mediaUrl?: string;
-  ack?: number;
-  queueId?: number;
 }
 interface Request {
   messageData: MessageData;
-  companyId: number;
 }
 
 const CreateMessageService = async ({
-  messageData,
-  companyId
+  messageData
 }: Request): Promise<Message> => {
-  await Message.upsert({ ...messageData, companyId });
+  await Message.upsert(messageData);
 
   const message = await Message.findByPk(messageData.id, {
     include: [
@@ -33,8 +29,7 @@ const CreateMessageService = async ({
         model: Ticket,
         as: "ticket",
         include: [
-          "contact",
-          "queue",
+          "contact", "queue",
           {
             model: Whatsapp,
             as: "whatsapp",
@@ -50,10 +45,6 @@ const CreateMessageService = async ({
     ]
   });
 
-  if (message.ticket.queueId !== null && message.queueId === null) {
-    await message.update({ queueId: message.ticket.queueId });
-  }
-
   if (!message) {
     throw new Error("ERR_CREATING_MESSAGE");
   }
@@ -62,7 +53,7 @@ const CreateMessageService = async ({
   io.to(message.ticketId.toString())
     .to(message.ticket.status)
     .to("notification")
-    .emit(`company-${companyId}-appMessage`, {
+    .emit("appMessage", {
       action: "create",
       message,
       ticket: message.ticket,

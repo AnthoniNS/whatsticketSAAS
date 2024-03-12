@@ -1,17 +1,7 @@
 import Setting from "../../models/Setting";
 
-interface Request {
-  companyId: number;
-}
-
-const ListSettingsService = async ({
-  companyId
-}: Request): Promise<Setting[] | undefined> => {
-  const settings = await Setting.findAll({
-    where: {
-      companyId
-    }
-  });
+const ListSettingsService = async (): Promise<Setting[] | undefined> => {
+  const settings = await Setting.findAll();
 
   return settings;
 };

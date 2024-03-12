@@ -1,26 +1,24 @@
 import { Request, Response } from "express";
 import { getIO } from "../libs/socket";
-import Ticket from "../models/Ticket";
 
 import CreateTicketService from "../services/TicketServices/CreateTicketService";
 import DeleteTicketService from "../services/TicketServices/DeleteTicketService";
 import ListTicketsService from "../services/TicketServices/ListTicketsService";
-import ShowTicketUUIDService from "../services/TicketServices/ShowTicketFromUUIDService";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import UpdateTicketService from "../services/TicketServices/UpdateTicketService";
-import ListTicketsServiceKanban from "../services/TicketServices/ListTicketsServiceKanban";
+import SendWhatsAppMessage from "../services/WbotServices/SendWhatsAppMessage";
+import ShowWhatsAppService from "../services/WhatsappService/ShowWhatsAppService";
+import ShowQueueService from "../services/QueueService/ShowQueueService";
+import formatBody from "../helpers/Mustache";
 
 type IndexQuery = {
   searchParam: string;
   pageNumber: string;
   status: string;
   date: string;
-  updatedAt?: string;
   showAll: string;
   withUnreadMessages: string;
   queueIds: string;
-  tags: string;
-  users: string;
 };
 
 interface TicketData {
@@ -28,6 +26,7 @@ interface TicketData {
   status: string;
   queueId: number;
   userId: number;
+  transf: boolean;
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -35,143 +34,59 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     pageNumber,
     status,
     date,
-    updatedAt,
     searchParam,
     showAll,
     queueIds: queueIdsStringified,
-    tags: tagIdsStringified,
-    users: userIdsStringified,
     withUnreadMessages
   } = req.query as IndexQuery;
 
   const userId = req.user.id;
-  const { companyId } = req.user;
 
   let queueIds: number[] = [];
-  let tagsIds: number[] = [];
-  let usersIds: number[] = [];
 
   if (queueIdsStringified) {
     queueIds = JSON.parse(queueIdsStringified);
   }
 
-  if (tagIdsStringified) {
-    tagsIds = JSON.parse(tagIdsStringified);
-  }
-
-  if (userIdsStringified) {
-    usersIds = JSON.parse(userIdsStringified);
-  }
-
   const { tickets, count, hasMore } = await ListTicketsService({
     searchParam,
-    tags: tagsIds,
-    users: usersIds,
     pageNumber,
     status,
     date,
-    updatedAt,
     showAll,
     userId,
     queueIds,
-    withUnreadMessages,
-    companyId,
-
-
+    withUnreadMessages
   });
+
   return res.status(200).json({ tickets, count, hasMore });
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const { contactId, status, userId, queueId }: TicketData = req.body;
-  const { companyId } = req.user;
 
   const ticket = await CreateTicketService({
     contactId,
     status,
     userId,
-    companyId,
     queueId
   });
 
   const io = getIO();
-  io.to(ticket.status).emit(`company-${companyId}-ticket`, {
+  io.to(ticket.status).emit("ticket", {
     action: "update",
     ticket
   });
+
   return res.status(200).json(ticket);
-};
-
-export const kanban = async (req: Request, res: Response): Promise<Response> => {
-  const {
-    pageNumber,
-    status,
-    date,
-    updatedAt,
-    searchParam,
-    showAll,
-    queueIds: queueIdsStringified,
-    tags: tagIdsStringified,
-    users: userIdsStringified,
-    withUnreadMessages
-  } = req.query as IndexQuery;
-
-
-  const userId = req.user.id;
-  const { companyId } = req.user;
-
-  let queueIds: number[] = [];
-  let tagsIds: number[] = [];
-  let usersIds: number[] = [];
-
-  if (queueIdsStringified) {
-    queueIds = JSON.parse(queueIdsStringified);
-  }
-
-  if (tagIdsStringified) {
-    tagsIds = JSON.parse(tagIdsStringified);
-  }
-
-  if (userIdsStringified) {
-    usersIds = JSON.parse(userIdsStringified);
-  }
-
-  const { tickets, count, hasMore } = await ListTicketsServiceKanban({
-    searchParam,
-    tags: tagsIds,
-    users: usersIds,
-    pageNumber,
-    status,
-    date,
-    updatedAt,
-    showAll,
-    userId,
-    queueIds,
-    withUnreadMessages,
-    companyId
-
-  });
-
-  return res.status(200).json({ tickets, count, hasMore });
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
   const { ticketId } = req.params;
-  const { companyId } = req.user;
 
-  const contact = await ShowTicketService(ticketId, companyId);
+  const contact = await ShowTicketService(ticketId);
+
   return res.status(200).json(contact);
-};
-
-export const showFromUUID = async (
-  req: Request,
-  res: Response
-): Promise<Response> => {
-  const { uuid } = req.params;
-
-  const ticket: Ticket = await ShowTicketUUIDService(uuid);
-
-  return res.status(200).json(ticket);
 };
 
 export const update = async (
@@ -180,14 +95,32 @@ export const update = async (
 ): Promise<Response> => {
   const { ticketId } = req.params;
   const ticketData: TicketData = req.body;
-  const { companyId } = req.user;
 
   const { ticket } = await UpdateTicketService({
     ticketData,
-    ticketId,
-    companyId
+    ticketId
   });
 
+  if (ticketData.transf) {
+    const { greetingMessage } = await ShowQueueService(ticketData.queueId);
+    if (greetingMessage) {
+      const msgtxt = formatBody(`\u200e${greetingMessage}`);
+      await SendWhatsAppMessage({ body: msgtxt, ticket });
+    }
+  }
+
+  if (ticket.status === "closed" && ticket.isGroup === false) {
+    const whatsapp = await ShowWhatsAppService(ticket.whatsappId);
+
+    const { farewellMessage } = whatsapp;
+
+    if (farewellMessage) {
+      await SendWhatsAppMessage({
+        body: formatBody(`\u200e${farewellMessage}`, ticket),
+        ticket
+      });
+    }
+  }
 
   return res.status(200).json(ticket);
 };
@@ -197,9 +130,6 @@ export const remove = async (
   res: Response
 ): Promise<Response> => {
   const { ticketId } = req.params;
-  const { companyId } = req.user;
-
-  await ShowTicketService(ticketId, companyId);
 
   const ticket = await DeleteTicketService(ticketId);
 
@@ -207,7 +137,7 @@ export const remove = async (
   io.to(ticket.status)
     .to(ticketId)
     .to("notification")
-    .emit(`company-${companyId}-ticket`, {
+    .emit("ticket", {
       action: "delete",
       ticketId: +ticketId
     });

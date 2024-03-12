@@ -2,25 +2,16 @@ import * as Yup from "yup";
 
 import AppError from "../../errors/AppError";
 import Whatsapp from "../../models/Whatsapp";
-import Company from "../../models/Company";
-import Plan from "../../models/Plan";
 import AssociateWhatsappQueue from "./AssociateWhatsappQueue";
 
 interface Request {
   name: string;
-  companyId: number;
   queueIds?: number[];
   greetingMessage?: string;
-  complationMessage?: string;
-  outOfHoursMessage?: string;
-  ratingMessage?: string;
+  farewellMessage?: string;
   status?: string;
   isDefault?: boolean;
-  token?: string;
-  provider?: string;
-  sendIdQueue?: number;
-  timeSendQueue?: number;
-  promptId?: number;
+  isDisplay?: boolean;
 }
 
 interface Response {
@@ -33,45 +24,17 @@ const CreateWhatsAppService = async ({
   status = "OPENING",
   queueIds = [],
   greetingMessage,
-  complationMessage,
-  outOfHoursMessage,
-  ratingMessage,
+  farewellMessage,
   isDefault = false,
-  companyId,
-  token = "",
-  provider = "beta",
-  timeSendQueue,
-  sendIdQueue,
-  promptId
+  isDisplay = false
 }: Request): Promise<Response> => {
-  const company = await Company.findOne({
-    where: {
-      id: companyId
-    },
-    include: [{ model: Plan, as: "plan" }]
-  });
-
-  if (company !== null) {
-    const whatsappCount = await Whatsapp.count({
-      where: {
-        companyId
-      }
-    });
-
-    if (whatsappCount >= company.plan.connections) {
-      throw new AppError(
-        `Número máximo de conexões já alcançado: ${whatsappCount}`
-      );
-    }
-  }
-
   const schema = Yup.object().shape({
     name: Yup.string()
       .required()
       .min(2)
       .test(
         "Check-name",
-        "Esse nome já está sendo utilizado por outra conexão",
+        "This whatsapp name is already used.",
         async value => {
           if (!value) return false;
           const nameExists = await Whatsapp.findOne({
@@ -85,11 +48,11 @@ const CreateWhatsAppService = async ({
 
   try {
     await schema.validate({ name, status, isDefault });
-  } catch (err: any) {
+  } catch (err) {
     throw new AppError(err.message);
   }
 
-  const whatsappFound = await Whatsapp.findOne({ where: { companyId } });
+  const whatsappFound = await Whatsapp.findOne();
 
   isDefault = !whatsappFound;
 
@@ -97,10 +60,10 @@ const CreateWhatsAppService = async ({
 
   if (isDefault) {
     oldDefaultWhatsapp = await Whatsapp.findOne({
-      where: { isDefault: true, companyId }
+      where: { isDefault: true }
     });
     if (oldDefaultWhatsapp) {
-      await oldDefaultWhatsapp.update({ isDefault: false, companyId });
+      await oldDefaultWhatsapp.update({ isDefault: false });
     }
   }
 
@@ -108,46 +71,14 @@ const CreateWhatsAppService = async ({
     throw new AppError("ERR_WAPP_GREETING_REQUIRED");
   }
 
-  if (token !== null && token !== "") {
-    const tokenSchema = Yup.object().shape({
-      token: Yup.string()
-        .required()
-        .min(2)
-        .test(
-          "Check-token",
-          "This whatsapp token is already used.",
-          async value => {
-            if (!value) return false;
-            const tokenExists = await Whatsapp.findOne({
-              where: { token: value }
-            });
-            return !tokenExists;
-          }
-        )
-    });
-
-    try {
-      await tokenSchema.validate({ token });
-    } catch (err: any) {
-      throw new AppError(err.message);
-    }
-  }
-
   const whatsapp = await Whatsapp.create(
     {
       name,
       status,
       greetingMessage,
-      complationMessage,
-      outOfHoursMessage,
-      ratingMessage,
+      farewellMessage,
       isDefault,
-      companyId,
-      token,
-      provider,
-      timeSendQueue,
-      sendIdQueue,
-      promptId
+      isDisplay
     },
     { include: ["queues"] }
   );

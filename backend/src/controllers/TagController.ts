@@ -10,36 +10,30 @@ import ShowService from "../services/TagServices/ShowService";
 import DeleteService from "../services/TagServices/DeleteService";
 import SimpleListService from "../services/TagServices/SimpleListService";
 import SyncTagService from "../services/TagServices/SyncTagsService";
-import KanbanListService from "../services/TagServices/KanbanListService";
+import DeleteAllService from "../services/TagServices/DeleteAllService";
 
 type IndexQuery = {
   searchParam?: string;
   pageNumber?: string | number;
-  kanban?: number;
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
   const { pageNumber, searchParam } = req.query as IndexQuery;
-  const { companyId } = req.user;
 
   const { tags, count, hasMore } = await ListService({
     searchParam,
-    pageNumber,
-    companyId
+    pageNumber
   });
 
   return res.json({ tags, count, hasMore });
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { name, color, kanban } = req.body;
-  const { companyId } = req.user;
+  const { name, color } = req.body;
 
   const tag = await CreateService({
     name,
-    color,
-    companyId,
-    kanban
+    color
   });
 
   const io = getIO();
@@ -49,14 +43,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   });
 
   return res.status(200).json(tag);
-};
-
-export const kanban = async (req: Request, res: Response): Promise<Response> => {
-  const { companyId } = req.user;
-
-  const tags = await KanbanListService({ companyId });
-
-  return res.json({lista:tags});
 };
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
@@ -106,23 +92,35 @@ export const remove = async (
   return res.status(200).json({ message: "Tag deleted" });
 };
 
+export const removeAll = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { tagId } = req.params;
+
+  await DeleteAllService();
+
+  return res.send();
+};
+
 export const list = async (req: Request, res: Response): Promise<Response> => {
   const { searchParam } = req.query as IndexQuery;
-  const { companyId } = req.user;
 
-  const tags = await SimpleListService({ searchParam, companyId });
+  const tags = await SimpleListService({ searchParam });
 
   return res.json(tags);
 };
 
-export const syncTags = async (
-  req: Request,
-  res: Response
-): Promise<Response> => {
+export const syncTags = async (req: Request, res: Response): Promise<any> => {
   const data = req.body;
-  const { companyId } = req.user;
 
-  const tags = await SyncTagService({ ...data, companyId });
+  try {
+    if (data) {
+      const tags = await SyncTagService(data);
 
-  return res.json(tags);
+      return res.json(tags);
+    }
+  } catch (err) {
+    throw new AppError("ERR_SYNC_TAGS", 500);
+  }
 };

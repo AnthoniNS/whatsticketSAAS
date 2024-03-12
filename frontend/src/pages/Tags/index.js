@@ -1,27 +1,29 @@
-import React, {
-  useState,
-  useEffect,
-  useReducer,
-  useCallback,
-  useContext,
-} from "react";
+import React, { useState, useEffect, useReducer, useCallback } from "react";
 import { toast } from "react-toastify";
+import openSocket from "socket.io-client";
 
 import { makeStyles } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
-import Button from "@material-ui/core/Button";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
-import IconButton from "@material-ui/core/IconButton";
-import SearchIcon from "@material-ui/icons/Search";
-import TextField from "@material-ui/core/TextField";
-import InputAdornment from "@material-ui/core/InputAdornment";
+import {
+  Button,
+  IconButton,
+  InputAdornment,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip
+} from "@material-ui/core";
 
-import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
-import EditIcon from "@material-ui/icons/Edit";
+import {
+  AddCircleOutline,
+  DeleteForever,
+  DeleteOutline,
+  Edit,
+  Search
+} from "@material-ui/icons";
 
 import MainContainer from "../../components/MainContainer";
 import MainHeader from "../../components/MainHeader";
@@ -34,9 +36,6 @@ import TableRowSkeleton from "../../components/TableRowSkeleton";
 import TagModal from "../../components/TagModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import toastError from "../../errors/toastError";
-import { Chip } from "@material-ui/core";
-import { socketConnection } from "../../services/socket";
-import { AuthContext } from "../../context/Auth/AuthContext";
 
 const reducer = (state, action) => {
   if (action.type === "LOAD_TAGS") {
@@ -85,22 +84,27 @@ const reducer = (state, action) => {
 const useStyles = makeStyles((theme) => ({
   mainPaper: {
     flex: 1,
-    padding: theme.spacing(1),
+    padding: theme.spacing(2),
+    margin: theme.spacing(1),
     overflowY: "scroll",
     ...theme.scrollbarStyles,
+  },
+  customTableCell: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 }));
 
 const Tags = () => {
   const classes = useStyles();
 
-  const { user } = useContext(AuthContext);
-
   const [loading, setLoading] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [selectedTag, setSelectedTag] = useState(null);
   const [deletingTag, setDeletingTag] = useState(null);
+  const [deletingAllTags, setDeletingAllTags] = useState(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [searchParam, setSearchParam] = useState("");
   const [tags, dispatch] = useReducer(reducer, []);
@@ -133,22 +137,22 @@ const Tags = () => {
   }, [searchParam, pageNumber, fetchTags]);
 
   useEffect(() => {
-    const socket = socketConnection({ companyId: user.companyId });
+    const socket = openSocket(process.env.REACT_APP_BACKEND_URL);
 
-    socket.on("user", (data) => {
+    socket.on("tags", (data) => {
       if (data.action === "update" || data.action === "create") {
         dispatch({ type: "UPDATE_TAGS", payload: data.tags });
       }
 
       if (data.action === "delete") {
-        dispatch({ type: "DELETE_USER", payload: +data.tagId });
+        dispatch({ type: "DELETE_TAGS", payload: +data.tagId });
       }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [user]);
+  }, []);
 
   const handleOpenTagModal = () => {
     setSelectedTag(null);
@@ -185,6 +189,22 @@ const Tags = () => {
     await fetchTags();
   };
 
+  const handleDeleteAllTags = async () => {
+    try {
+      await api.delete(`/tags`);
+      toast.success(i18n.t("tags.toasts.deletedAll"));
+    } catch (err) {
+      toastError(err);
+    }
+    setDeletingAllTags(null);
+    setSearchParam("");
+    setPageNumber();
+
+    dispatch({ type: "RESET" });
+    setPageNumber(1);
+    await fetchTags();
+  };
+
   const loadMore = () => {
     setPageNumber((prevState) => prevState + 1);
   };
@@ -200,12 +220,21 @@ const Tags = () => {
   return (
     <MainContainer>
       <ConfirmationModal
-        title={deletingTag && `${i18n.t("tags.confirmationModal.deleteTitle")}`}
+        title={
+          deletingTag ? `${i18n.t("tags.confirmationModal.deleteTitle")}`
+          : `${i18n.t("tags.confirmationModal.deleteAllTitle")}`
+        }
         open={confirmModalOpen}
         onClose={setConfirmModalOpen}
-        onConfirm={() => handleDeleteTag(deletingTag.id)}
+        onConfirm={() => 
+          deletingTag ? handleDeleteTag(deletingTag.id)
+         : handleDeleteAllTags(deletingAllTags)
+        }
       >
-        {i18n.t("tags.confirmationModal.deleteMessage")}
+        {
+          deletingTag ? `${i18n.t("tags.confirmationModal.deleteMessage")}`
+            : `${i18n.t("tags.confirmationModal.deleteAllMessage")}`
+        }
       </ConfirmationModal>
       <TagModal
         open={tagModalOpen}
@@ -215,7 +244,7 @@ const Tags = () => {
         tagId={selectedTag && selectedTag.id}
       />
       <MainHeader>
-        <Title>{i18n.t("tags.title")}</Title>
+        <Title >{i18n.t("tags.title")} ({tags.length})</Title>
         <MainHeaderButtonsWrapper>
           <TextField
             placeholder={i18n.t("contacts.searchPlaceholder")}
@@ -225,18 +254,32 @@ const Tags = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon style={{ color: "gray" }} />
+                  <Search color="secondary" />
                 </InputAdornment>
               ),
             }}
           />
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleOpenTagModal}
-          >
-            {i18n.t("tags.buttons.add")}
-          </Button>
+          <Tooltip title={i18n.t("tags.buttons.add")}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleOpenTagModal}
+            >
+              <AddCircleOutline />
+            </Button>
+          </Tooltip>
+          <Tooltip title={i18n.t("tags.buttons.deleteAll")}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={(e) => {
+                setConfirmModalOpen(true);
+                setDeletingAllTags(tags);
+              }}
+            >
+              <DeleteForever />
+            </Button>
+          </Tooltip>
         </MainHeaderButtonsWrapper>
       </MainHeader>
       <Paper
@@ -248,12 +291,9 @@ const Tags = () => {
           <TableHead>
             <TableRow>
               <TableCell align="center">{i18n.t("tags.table.name")}</TableCell>
-              <TableCell align="center">
-                {i18n.t("tags.table.tickets")}
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("tags.table.actions")}
-              </TableCell>
+              <TableCell align="center">{i18n.t("tags.table.color")}</TableCell>
+              <TableCell align="center">{i18n.t("tags.table.contacts")}</TableCell>
+              <TableCell align="center">{i18n.t("tags.table.actions")}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -261,21 +301,28 @@ const Tags = () => {
               {tags.map((tag) => (
                 <TableRow key={tag.id}>
                   <TableCell align="center">
-                    <Chip
-                      variant="outlined"
-                      style={{
-                        backgroundColor: tag.color,
-                        textShadow: "1px 1px 1px #000",
-                        color: "white",
-                      }}
-                      label={tag.name}
-                      size="small"
-                    />
+                    {tag.name}
                   </TableCell>
-                  <TableCell align="center">{tag.ticketsCount}</TableCell>
                   <TableCell align="center">
-                    <IconButton size="small" onClick={() => handleEditTag(tag)}>
-                      <EditIcon />
+                    <div className={classes.customTableCell}>
+                      <span
+                        style={{
+                          backgroundColor: tag.color,
+                          width: 20,
+                          height: 20,
+                          alignSelf: "center",
+                          borderRadius: 10
+                        }}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell align="center">{tag.contacttag.length ? (<span>{tag.contacttag.length}</span>) : <span>0</span>}</TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleEditTag(tag)}
+                    >
+                      <Edit color="secondary"/>
                     </IconButton>
 
                     <IconButton
@@ -285,12 +332,12 @@ const Tags = () => {
                         setDeletingTag(tag);
                       }}
                     >
-                      <DeleteOutlineIcon />
+                      <DeleteOutline color="secondary"/>
                     </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
-              {loading && <TableRowSkeleton columns={4} />}
+              {loading && <TableRowSkeleton columns={3} />}
             </>
           </TableBody>
         </Table>

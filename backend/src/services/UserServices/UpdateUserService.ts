@@ -1,28 +1,24 @@
 import * as Yup from "yup";
 
 import AppError from "../../errors/AppError";
+import { SerializeUser } from "../../helpers/SerializeUser";
 import ShowUserService from "./ShowUserService";
-import Company from "../../models/Company";
-import User from "../../models/User";
 
 interface UserData {
   email?: string;
   password?: string;
   name?: string;
   profile?: string;
-  companyId?: number;
+  isTricked?: boolean;
   queueIds?: number[];
   whatsappId?: number;
-  greetingMessage?: string;
-  transferMessage?: string;
-
+  startWork?: string;
+  endWork?: string;
 }
 
 interface Request {
   userData: UserData;
   userId: string | number;
-  companyId: number;
-  requestUserId: number;
 }
 
 interface Response {
@@ -34,17 +30,9 @@ interface Response {
 
 const UpdateUserService = async ({
   userData,
-  userId,
-  companyId,
-  requestUserId
+  userId
 }: Request): Promise<Response | undefined> => {
   const user = await ShowUserService(userId);
-
-  const requestUser = await User.findByPk(requestUserId);
-
-  if (requestUser.super === false && userData.companyId !== companyId) {
-    throw new AppError("O usuário não pertence à esta empresa");
-  }
 
   const schema = Yup.object().shape({
     name: Yup.string().min(2),
@@ -53,11 +41,21 @@ const UpdateUserService = async ({
     password: Yup.string()
   });
 
-  const { email, password, profile, name, queueIds = [], whatsappId, greetingMessage, transferMessage } = userData;
+  const {
+    email,
+    password,
+    profile,
+    isTricked,
+    name,
+    queueIds = [],
+    whatsappId,
+    startWork,
+    endWork
+  } = userData;
 
   try {
     await schema.validate({ email, password, profile, name });
-  } catch (err: any) {
+  } catch (err) {
     throw new AppError(err.message);
   }
 
@@ -65,32 +63,18 @@ const UpdateUserService = async ({
     email,
     password,
     profile,
+    isTricked,
     name,
     whatsappId: whatsappId || null,
-    greetingMessage,
-    transferMessage
-
+    startWork,
+    endWork
   });
 
   await user.$set("queues", queueIds);
 
   await user.reload();
 
-  const company = await Company.findByPk(user.companyId);
-
-  const serializedUser = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    profile: user.profile,
-    companyId: user.companyId,
-    greetingMessage,
-    transferMessage,
-    company,
-    queues: user.queues
-  };
-
-  return serializedUser;
+  return SerializeUser(user);
 };
 
 export default UpdateUserService;

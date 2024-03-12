@@ -13,7 +13,6 @@ import {
 interface RefreshTokenPayload {
   id: string;
   tokenVersion: number;
-  companyId: number;
 }
 
 interface Response {
@@ -28,7 +27,7 @@ export const RefreshTokenService = async (
 ): Promise<Response> => {
   try {
     const decoded = verify(token, authConfig.refreshSecret);
-    const { id, tokenVersion, companyId } = decoded as RefreshTokenPayload;
+    const { id, tokenVersion } = decoded as RefreshTokenPayload;
 
     const user = await ShowUserService(id);
 

@@ -1,33 +1,26 @@
 import { Chip, Paper, TextField } from "@material-ui/core";
 import Autocomplete from "@material-ui/lab/Autocomplete";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { isArray, isString } from "lodash";
 import toastError from "../../errors/toastError";
 import api from "../../services/api";
 
-export function TagsContainer({ ticket }) {
+export function TagsContainer ({ contact }) {
 
     const [tags, setTags] = useState([]);
     const [selecteds, setSelecteds] = useState([]);
-    const isMounted = useRef(true);
 
     useEffect(() => {
-        return () => {
-            isMounted.current = false
-        }
-    }, [])
-
-    useEffect(() => {
-        if (isMounted.current) {
-            loadTags().then(() => {
-                if (Array.isArray(ticket.tags)) {
-                    setSelecteds(ticket.tags);
-                } else {
-                    setSelecteds([]);
+        if (contact) {
+            async function fetchData () {
+                await loadTags();
+                if (Array.isArray(contact.tags)) {
+                    setSelecteds(contact.tags);
                 }
-            });
+            }
+            fetchData();
         }
-    }, [ticket]);
+    }, [contact]);
 
     const createTag = async (data) => {
         try {
@@ -74,11 +67,11 @@ export function TagsContainer({ ticket }) {
             optionsChanged = value;
         }
         setSelecteds(optionsChanged);
-        await syncTags({ ticketId: ticket.id, tags: optionsChanged });
+        await syncTags({ contactId: contact.id, tags: optionsChanged });
     }
 
     return (
-        <Paper style={{ padding: 12 }}>
+        <Paper style={{padding: 12}}>
             <Autocomplete
                 multiple
                 size="small"
@@ -91,16 +84,8 @@ export function TagsContainer({ ticket }) {
                     value.map((option, index) => (
                         <Chip
                             variant="outlined"
-                            style={{
-                                background: option.color || '#eee',
-                                color: "#FFF",
-                                marginRight: 1,
-                                fontWeight: 600,
-                                borderRadius: 3,
-                                fontSize: "0.8em",
-                                whiteSpace: "nowrap"
-                            }}
-                            label={option.name.toUpperCase()}
+                            style={{backgroundColor: option.color || '#eee', textShadow: '1px 1px 1px #000', color: 'white'}}
+                            label={option.name}
                             {...getTagProps({ index })}
                             size="small"
                         />
@@ -110,7 +95,7 @@ export function TagsContainer({ ticket }) {
                     <TextField {...params} variant="outlined" placeholder="Tags" />
                 )}
                 PaperComponent={({ children }) => (
-                    <Paper style={{ width: 400, marginLeft: 12 }}>
+                    <Paper style={{width: 400, marginLeft: 12}}>
                         {children}
                     </Paper>
                 )}

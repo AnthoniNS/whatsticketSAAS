@@ -1,22 +1,22 @@
+import AppError from "../../errors/AppError";
 import Setting from "../../models/Setting";
 
 interface Request {
-    companyId: number;
-    key?: string;
+  key: string;
 }
 
 const ListSettingsServiceOne = async ({
-    companyId,
-    key
+  key
 }: Request): Promise<Setting | undefined> => {
-    const setting = await Setting.findOne({
-        where: {
-            companyId,
-            ...(key && { key })
-        }
-    });
+  const setting = await Setting.findOne({
+    where: { key }
+  });
 
-    return setting;
+  if (!setting) {
+    throw new AppError("ERR_NO_SETTING_FOUND", 404);
+  }
+
+  return setting;
 };
 
 export default ListSettingsServiceOne;
