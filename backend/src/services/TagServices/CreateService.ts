@@ -6,26 +6,18 @@ import Tag from "../../models/Tag";
 interface Request {
   name: string;
   color: string;
+  companyId: number;
+  kanban: number;
 }
 
 const CreateService = async ({
   name,
-  color = "#eee"
+  color = "#A4CCCC",
+  companyId,
+  kanban = 0,
 }: Request): Promise<Tag> => {
   const schema = Yup.object().shape({
-    name: Yup.string()
-      .required()
-      .min(3)
-      .test("Check-unique-name", "ERR_TAG_NAME_ALREADY_EXISTS", async value => {
-        if (value) {
-          const tagWithSameName = await Tag.findOne({
-            where: { name: value }
-          });
-
-          return !tagWithSameName;
-        }
-        return false;
-      })
+    name: Yup.string().required().min(3)
   });
 
   try {
@@ -35,8 +27,8 @@ const CreateService = async ({
   }
 
   const [tag] = await Tag.findOrCreate({
-    where: { name, color },
-    defaults: { name, color }
+    where: { name, color, kanban, companyId },
+    defaults: { name, color, kanban, companyId }
   });
 
   await tag.reload();

@@ -1,12 +1,19 @@
 import { Op, Sequelize } from "sequelize";
 import Tag from "../../models/Tag";
-import Contact from "../../models/Contact";
+import Ticket from "../../models/Ticket";
+import TicketTag from "../../models/TicketTag";
 
 interface Request {
+  companyId: number;
   searchParam?: string;
+  kanban?: number;
 }
 
-const ListService = async ({ searchParam }: Request): Promise<Tag[]> => {
+const ListService = async ({
+  companyId,
+  searchParam,
+  kanban = 0
+}: Request): Promise<Tag[]> => {
   let whereCondition = {};
 
   if (searchParam) {
@@ -19,28 +26,8 @@ const ListService = async ({ searchParam }: Request): Promise<Tag[]> => {
   }
 
   const tags = await Tag.findAll({
-    where: whereCondition,
-    order: [["name", "ASC"]],
-    include: [
-      {
-        model: Contact,
-        as: "contacts"
-      }
-    ],
-    attributes: {
-      exclude: ["createdAt", "updatedAt"],
-      include: [
-        [Sequelize.fn("COUNT", Sequelize.col("contacts.id")), "contactsCount"]
-      ]
-    },
-    group: [
-      "Tag.id",
-      "contacts.ContactTag.tagId",
-      "contacts.ContactTag.contactId",
-      "contacts.ContactTag.createdAt",
-      "contacts.ContactTag.updatedAt",
-      "contacts.id"
-    ]
+    where: { ...whereCondition, companyId, kanban  },
+    order: [["name", "ASC"]]
   });
 
   return tags;

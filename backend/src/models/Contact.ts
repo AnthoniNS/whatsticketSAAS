@@ -1,21 +1,22 @@
 import {
-  AllowNull,
-  AutoIncrement,
-  BelongsToMany,
+  Table,
   Column,
   CreatedAt,
-  Default,
-  HasMany,
+  UpdatedAt,
   Model,
   PrimaryKey,
-  Table,
+  AutoIncrement,
+  AllowNull,
   Unique,
-  UpdatedAt
+  Default,
+  HasMany,
+  ForeignKey,
+  BelongsTo
 } from "sequelize-typescript";
 import ContactCustomField from "./ContactCustomField";
 import Ticket from "./Ticket";
-import Tag from "./Tag";
-import ContactTag from "./ContactTag";
+import Company from "./Company";
+import Schedule from "./Schedule";
 
 @Table
 class Contact extends Model<Contact> {
@@ -37,8 +38,13 @@ class Contact extends Model<Contact> {
   @Column
   email: string;
 
+  @Default("")
   @Column
   profilePicUrl: string;
+
+  @Default("whatsapp")
+  @Column
+  channel: string;
 
   @Default(false)
   @Column
@@ -56,11 +62,19 @@ class Contact extends Model<Contact> {
   @HasMany(() => ContactCustomField)
   extraInfo: ContactCustomField[];
 
-  @HasMany(() => ContactTag)
-  contactTags: ContactTag[];
+  @ForeignKey(() => Company)
+  @Column
+  companyId: number;
 
-  @BelongsToMany(() => Tag, () => ContactTag)
-  tags: Tag[];
+  @BelongsTo(() => Company)
+  company: Company;
+
+  @HasMany(() => Schedule, {
+    onUpdate: "CASCADE",
+    onDelete: "CASCADE",
+    hooks: true
+  })
+  schedules: Schedule[];
 }
 
 export default Contact;

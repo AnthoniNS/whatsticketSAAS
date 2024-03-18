@@ -1,63 +1,93 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import qs from 'query-string'
 
 import * as Yup from "yup";
 import { useHistory } from "react-router-dom";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Formik, Form, Field } from "formik";
-
 import {
-	Button,
-	CssBaseline,
-	TextField,
-	Grid,
-	Box,
-	Typography,
-	Container,
-	InputAdornment,
-	IconButton,
-	Link
+
+    Button,
+    CssBaseline,
+    TextField,
+    Grid,
+    Typography,
+    Container,
+
+    Link
 } from '@material-ui/core';
-
-import { Visibility, VisibilityOff } from '@material-ui/icons';
-
+import usePlans from "../../hooks/usePlans";
+import Box from "@material-ui/core/Box";
+import {
+	
+	InputLabel,
+	MenuItem,
+	Select,
+} from "@material-ui/core";
+import LockOutlinedIcon from "@material-ui/icons/LockOutlined";
 import { makeStyles } from "@material-ui/core/styles";
-
 import { i18n } from "../../translate/i18n";
-
-import api from "../../services/api";
+import { openApi } from "../../services/api";
 import toastError from "../../errors/toastError";
+import moment from "moment";
+import logo from "../../assets/logologin.png";
 
-import { system } from "../../config.json";
-import logo from '../../assets/logo.png';
-
-const Copyright = () => {
-	return (
-		<Typography variant="body2" color="textSecondary" align="center">
-			© {new Date().getFullYear()}
-			{" - "}
-			<Link color="inherit" href={system.url || "https://github.com/rtenorioh/Press-Ticket"}>
-				{system.name || "Press Ticket"}
-			</Link>
-			{"."}
-		</Typography>
-	);
-};
+// const Copyright = () => {
+// 	return (
+// 		<Typography variant="body2" color="textSecondary" align="center">
+// 			{"Copyleft "}
+// 			<Link color="inherit" href="https://github.com/canove">
+// 				Canove
+// 			</Link>{" "}
+// 			{new Date().getFullYear()}
+// 			{"."}
+// 		</Typography>
+// 	);
+// };
 
 const useStyles = makeStyles(theme => ({
-	paper: {
-		marginTop: theme.spacing(8),
-		display: "flex",
-		flexDirection: "column",
-		alignItems: "center",
-	},
-	form: {
-		width: "100%",
-		marginTop: theme.spacing(3),
-	},
-	submit: {
-		margin: theme.spacing(3, 0, 2),
-	},
+  root: {
+    width: "100vw",
+    height: "100vh",
+    background: "",
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "100% 100%",
+    backgroundPosition: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+  },
+  paper: {
+    marginTop: theme.spacing(8),
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    padding: theme.spacing(2),
+    borderRadius: theme.spacing(2),
+    //backgroundColor: `rgba(${theme.palette.background.paper}, 0.8)`,
+    backgroundColor: theme.palette.background.paper,
+    boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.16)",
+
+  },
+    avatar: {
+    margin: theme.spacing(1),
+    backgroundColor: theme.palette.secondary.main,
+  },
+  form: {
+    width: "100%", // Fix IE 11 issue.
+    marginTop: theme.spacing(1),
+  },
+  submit: {
+    margin: theme.spacing(3, 0, 2),
+  },
+  powered: {
+    color: "white"
+  }
 }));
 
 const UserSchema = Yup.object().shape({
@@ -72,30 +102,55 @@ const UserSchema = Yup.object().shape({
 const SignUp = () => {
 	const classes = useStyles();
 	const history = useHistory();
+	let companyId = null
 
-	const initialState = { name: "", email: "", password: "" };
-	const [showPassword, setShowPassword] = useState(false);
+	const params = qs.parse(window.location.search)
+	if (params.companyId !== undefined) {
+		companyId = params.companyId
+	}
+
+	const initialState = { name: "", email: "", password: "", planId: "", };
+
 	const [user] = useState(initialState);
-
+	const dueDate = moment().add(3, "day").format();
 	const handleSignUp = async values => {
+		Object.assign(values, { recurrence: "MENSAL" });
+		Object.assign(values, { dueDate: dueDate });
+		Object.assign(values, { status: "t" });
+		Object.assign(values, { campaignsEnabled: true });
 		try {
-			await api.post("/auth/signup", values);
+			await openApi.post("/companies/cadastro", values);
 			toast.success(i18n.t("signup.toasts.success"));
 			history.push("/login");
 		} catch (err) {
+			console.log(err);
 			toastError(err);
 		}
 	};
 
-	return (
-		<Container component="main" maxWidth="xs">
-			<CssBaseline />
-			<div className={classes.paper}>
-				<img alt="logo" src={logo}></img>
-				<Typography component="h1" variant="h5">
-					{i18n.t("signup.title")}
-				</Typography>
-				{/* <form className={classes.form} noValidate onSubmit={handleSignUp}> */}
+	const [plans, setPlans] = useState([]);
+	const { list: listPlans } = usePlans();
+
+	useEffect(() => {
+		async function fetchData() {
+			const list = await listPlans();
+			setPlans(list);
+		}
+		fetchData();
+	}, []);
+
+
+return (
+    <div className={classes.root}>
+      <Container component="main" maxWidth="xs">
+        <CssBaseline />
+        <div className={classes.paper}>
+          <div>
+            <img style={{ margin: "0 auto", height: "80px", width: "100%" }} src={logo} alt="Whats" />
+          </div>
+          <Typography component="h1" variant="h5">
+            {i18n.t("signup.title")}
+          </Typography>
 				<Formik
 					initialValues={user}
 					enableReinitialize={true}
@@ -120,8 +175,7 @@ const SignUp = () => {
 										variant="outlined"
 										fullWidth
 										id="name"
-										label={i18n.t("signup.form.name")}
-										autoFocus
+										label="Nome da Empresa"
 									/>
 								</Grid>
 
@@ -136,6 +190,7 @@ const SignUp = () => {
 										error={touched.email && Boolean(errors.email)}
 										helperText={touched.email && errors.email}
 										autoComplete="email"
+										required
 									/>
 								</Grid>
 								<Grid item xs={12}>
@@ -144,25 +199,32 @@ const SignUp = () => {
 										variant="outlined"
 										fullWidth
 										name="password"
-										id="password"
-										autoComplete="current-password"
 										error={touched.password && Boolean(errors.password)}
 										helperText={touched.password && errors.password}
 										label={i18n.t("signup.form.password")}
-										type={showPassword ? 'text' : 'password'}
-										InputProps={{
-											endAdornment: (
-												<InputAdornment position="end">
-													<IconButton
-														aria-label="toggle password visibility"
-														onClick={() => setShowPassword((e) => !e)}
-													>
-														{showPassword ? <VisibilityOff color="secondary" /> : <Visibility color="secondary" />}
-													</IconButton>
-												</InputAdornment>
-											)
-										}}
+										type="password"
+										id="password"
+										autoComplete="current-password"
+										required
 									/>
+								</Grid>
+								<Grid item xs={12}>
+									<InputLabel htmlFor="plan-selection">Plano</InputLabel>
+									<Field
+										as={Select}
+										variant="outlined"
+										fullWidth
+										id="plan-selection"
+										label="Plano"
+										name="planId"
+										required
+									>
+										{plans.map((plan, key) => (
+											<MenuItem key={key} value={plan.id}>
+												{plan.name} - Atendentes: {plan.users} - WhatsApp: {plan.connections} - Filas: {plan.queues} - R$ {plan.value}
+											</MenuItem>
+										))}
+									</Field>
 								</Grid>
 							</Grid>
 							<Button
@@ -190,8 +252,9 @@ const SignUp = () => {
 					)}
 				</Formik>
 			</div>
-			<Box mt={5}><Copyright /></Box>
+			<Box mt={5}>{/* <Copyright /> */}</Box>
 		</Container>
+		</div>
 	);
 };
 

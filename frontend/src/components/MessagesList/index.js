@@ -1,22 +1,19 @@
 import React, { useState, useEffect, useReducer, useRef } from "react";
-import { 
-  isSameDay,
-  parseISO,
-  format 
-} from "date-fns";
-import openSocket from "../../services/socket-io";
+
+import { isSameDay, parseISO, format } from "date-fns";
 import clsx from "clsx";
-import { 
-  blue, 
-  red 
-} from "@material-ui/core/colors";
+
+import { green } from "@material-ui/core/colors";
 import {
+  Avatar,
   Button,
   CircularProgress,
   Divider,
   IconButton,
   makeStyles,
+  Typography,
 } from "@material-ui/core";
+
 import {
   AccessTime,
   Block,
@@ -24,18 +21,19 @@ import {
   DoneAll,
   ExpandMore,
   GetApp,
+  Facebook,
+  Instagram,
 } from "@material-ui/icons";
 
 import MarkdownWrapper from "../MarkdownWrapper";
-import VcardPreview from "../VcardPreview";
-import LocationPreview from "../LocationPreview";
 import ModalImageCors from "../ModalImageCors";
 import MessageOptionsMenu from "../MessageOptionsMenu";
-import Audio from "../Audio";
+import whatsBackground from "../../assets/wa-background.png";
 
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
-import { toast } from "react-toastify";
+import { socketConnection } from "../../services/socket";
+
 
 const useStyles = makeStyles((theme) => ({
   messagesListWrapper: {
@@ -44,28 +42,23 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     flexGrow: 1,
-  },
-
-  ticketNumber: {
-    color: theme.palette.secondary.main,
-    padding: 8,
+    width: "100%",
+    minWidth: 300,
+    minHeight: 200,
   },
 
   messagesList: {
-    backgroundImage: theme.backgroundImage,
+    backgroundImage: `url(${whatsBackground})`,
     display: "flex",
     flexDirection: "column",
     flexGrow: 1,
     padding: "20px 20px 20px 20px",
     overflowY: "scroll",
-    [theme.breakpoints.down("sm")]: {
-      paddingBottom: "90px",
-    },
     ...theme.scrollbarStyles,
   },
 
   circleLoading: {
-    color: blue[500],
+    color: green[500],
     position: "absolute",
     opacity: "70%",
     top: 0,
@@ -253,15 +246,10 @@ const useStyles = makeStyles((theme) => ({
     fontSize: 18,
     verticalAlign: "middle",
     marginRight: 4,
-    color: red[200]
-  },
-
-  deletedMsg: {
-    color: red[200]
   },
 
   ackDoneAllIcon: {
-    color: blue[500],
+    color: green[500],
     fontSize: 18,
     verticalAlign: "middle",
     marginLeft: 4,
@@ -274,27 +262,12 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "inherit",
     padding: 10,
   },
-
-  messageCenter: {
-    marginTop: 5,
-    alignItems: "center",
-    verticalAlign: "center",
-    alignContent: "center",
-    backgroundColor: "#E1F5FEEB",
-    fontSize: "12px",
-    minWidth: 100,
-    maxWidth: 270,
-    color: "#272727",
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 8,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    paddingLeft: 5,
-    paddingRight: 5,
-    paddingTop: 5,
-    paddingBottom: 0,
-    boxShadow: "0 1px 1px #b3b3b3",
-  },
+  imageLocation: {
+    position: 'relative',
+    width: '100%',
+    height: 80,
+    borderRadius: 5
+  }
 }));
 
 const reducer = (state, action) => {
@@ -327,21 +300,9 @@ const reducer = (state, action) => {
     return [...state];
   }
 
-  function ToastDisplay(props) {
-    return <><h4>Mensagem apagada:</h4><p>{props.body}</p></>;
-  }
-
   if (action.type === "UPDATE_MESSAGE") {
     const messageToUpdate = action.payload;
-
     const messageIndex = state.findIndex((m) => m.id === messageToUpdate.id);
-
-    if (messageToUpdate.isDeleted === true) {
-      toast.info(<ToastDisplay
-        body={messageToUpdate.body}
-      >
-      </ToastDisplay>);
-    }
 
     if (messageIndex !== -1) {
       state[messageIndex] = messageToUpdate;
@@ -355,7 +316,7 @@ const reducer = (state, action) => {
   }
 };
 
-const MessagesList = ({ ticketId, isGroup }) => {
+const MessagesList = ({ ticket, ticketId, isGroup }) => {
   const classes = useStyles();
 
   const [messagesList, dispatch] = useReducer(reducer, []);
@@ -380,6 +341,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
     setLoading(true);
     const delayDebounceFn = setTimeout(() => {
       const fetchMessages = async () => {
+        if (ticketId === undefined) return;
         try {
           const { data } = await api.get("/messages/" + ticketId, {
             params: { pageNumber },
@@ -407,11 +369,12 @@ const MessagesList = ({ ticketId, isGroup }) => {
   }, [pageNumber, ticketId]);
 
   useEffect(() => {
-    const socket = openSocket();
+    const companyId = localStorage.getItem("companyId");
+    const socket = socketConnection({ companyId });
 
-    socket.on("connect", () => socket.emit("joinChatBox", ticketId));
+    socket.on("connect", () => socket.emit("joinChatBox", `${ticket.id}`));
 
-    socket.on("appMessage", (data) => {
+    socket.on(`company-${companyId}-appMessage`, (data) => {
       if (data.action === "create") {
         dispatch({ type: "ADD_MESSAGE", payload: data.message });
         scrollToBottom();
@@ -425,7 +388,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
     return () => {
       socket.disconnect();
     };
-  }, [ticketId]);
+  }, [ticketId, ticket]);
 
   const loadMore = () => {
     setPageNumber((prevPageNumber) => prevPageNumber + 1);
@@ -464,58 +427,18 @@ const MessagesList = ({ ticketId, isGroup }) => {
   };
 
   const checkMessageMedia = (message) => {
-    if (message.mediaType === "location" && message.body.split('|').length >= 2) {
-      let locationParts = message.body.split('|')
-      let imageLocation = locationParts[0]
-      let linkLocation = locationParts[1]
-
-      let descriptionLocation = null
-
-      if (locationParts.length > 2)
-        descriptionLocation = message.body.split('|')[2]
-
-      return <LocationPreview image={imageLocation} link={linkLocation} description={descriptionLocation} />
-    }
-    else if (message.mediaType === "vcard") {
-      let array = message.body.split("\n");
-      let obj = [];
-      let contact = "";
-      for (let index = 0; index < array.length; index++) {
-        const v = array[index];
-        let values = v.split(":");
-        for (let ind = 0; ind < values.length; ind++) {
-          if (values[ind].indexOf("+") !== -1) {
-            obj.push({ number: values[ind] });
-          }
-          if (values[ind].indexOf("FN") !== -1) {
-            contact = values[ind + 1];
-          }
-        }
-      }
-      return <VcardPreview contact={contact} numbers={obj[0].number} />
-    }
-    /*else if (message.mediaType === "multi_vcard") {
-      console.log("multi_vcard")
-      console.log(message)
-    	
-      if(message.body !== null && message.body !== "") {
-        let newBody = JSON.parse(message.body)
-        return (
-          <>
-            {
-            newBody.map(v => (
-              <VcardPreview contact={v.name} numbers={v.number} />
-            ))
-            }
-          </>
-        )
-      } else return (<></>)
-    }*/
-    else if (message.mediaType === "image") {
+    if (message.mediaType === "image") {
       return <ModalImageCors imageUrl={message.mediaUrl} />;
-    } else if (message.mediaType === "audio") {
-      return <Audio url={message.mediaUrl} />
-    } else if (message.mediaType === "video") {
+    }
+    if (message.mediaType === "audio") {
+      return (
+        <audio controls>
+          <source src={message.mediaUrl} type="audio/ogg"></source>
+        </audio>
+      );
+    }
+
+    if (message.mediaType === "video") {
       return (
         <video
           className={classes.messageMedia}
@@ -599,22 +522,6 @@ const MessagesList = ({ ticketId, isGroup }) => {
     }
   };
 
-  const renderNumberTicket = (message, index) => {
-    if (index < messagesList.length && index > 0) {
-      let messageTicket = message.ticketId;
-      let previousMessageTicket = messagesList[index - 1].ticketId;
-
-      if (messageTicket !== previousMessageTicket) {
-        return (
-          <div key={`ticket-${message.id}`} className={classes.ticketNumber}>
-            #ticket: {messageTicket}
-            <hr />
-          </div>
-        );
-      }
-    }
-  };
-
   const renderMessageDivider = (message, index) => {
     if (index < messagesList.length && index > 0) {
       let messageUser = messagesList[index].fromMe;
@@ -646,90 +553,101 @@ const MessagesList = ({ ticketId, isGroup }) => {
               {message.quotedMsg?.contact?.name}
             </span>
           )}
-          {message.quotedMsg.mediaType === "audio"
-            && (
-              <div className={classes.downloadMedia}>
-                <audio controls>
-                  <source src={message.quotedMsg.mediaUrl} type="audio/ogg"></source>
-                </audio>
-              </div>
-            )
-          }
-          {message.quotedMsg.mediaType === "video"
-            && (
-              <video
-                className={classes.messageMedia}
-                src={message.quotedMsg.mediaUrl}
-                controls
-              />
-            )
-          }
-          {message.quotedMsg.mediaType === "application"
-            && (
-              <div className={classes.downloadMedia}>
-                <Button
-                  startIcon={<GetApp />}
-                  color="primary"
-                  variant="outlined"
-                  target="_blank"
-                  href={message.quotedMsg.mediaUrl}
-                >
-                  Download
-                </Button>
-              </div>
-            )
-          }
-
-
-          {message.quotedMsg.mediaType === "image"
-            ? (<ModalImageCors imageUrl={message.quotedMsg.mediaUrl} />)
-            : message.quotedMsg?.body}
+          {message.quotedMsg?.body}
         </div>
       </div>
     );
   };
 
+  const isVCard = (message) => {
+    return message.includes('BEGIN:VCARD');
+  };
+
+  const vCard = (message) => {
+    const name = message?.substring(message.indexOf("N:;") + 3, message.indexOf(";;;"))
+    const description = message?.substring(message.indexOf("TION:") + 5, message.indexOf("TEL"))
+    return (
+      <div>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginTop: 20, marginBottom: 20 }}>
+          <Avatar style={{ marginRight: 10, marginLeft: 20, width: 60, height: 60 }} />
+          <div style={{ width: 350 }}>
+            <div>
+              <Typography
+                noWrap
+                component="h4"
+                variant="body2"
+                color="textPrimary"
+                style={{ fontWeight: '700' }}
+              >
+                {name}
+              </Typography>
+            </div>
+
+            <div style={{ width: 350 }}>
+              <Typography
+                component="span"
+                variant="body2"
+                color="textPrimary"
+                style={{ display: 'flex' }}
+              >
+                {description}
+              </Typography>
+            </div>
+          </div>
+
+        </div>
+        <div style={{
+          width: '100%', display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginTop: 20,
+          borderWidth: '1px 0 0 0',
+          borderTopColor: '#bdbdbd',
+          borderStyle: 'solid',
+          padding: 8
+        }}>
+          <Typography
+            noWrap
+            component="h4"
+            variant="body2"
+            color="textPrimary"
+            style={{ fontWeight: '700', color: '#2c9ce7' }}
+          >
+            Conversar
+          </Typography>
+        </div>
+      </div>
+    )
+  };
+
+  const messageLocation = (message, createdAt) => {
+    return (
+      <div className={[classes.textContentItem, { display: 'flex', padding: 5 }]}>
+        <img src={message.split('|')[0]} className={classes.imageLocation} />
+        <a
+          style={{ fontWeight: '700', color: 'gray' }}
+          target="_blank"
+          href={message.split('|')[1]}> Clique para ver localização</a>
+        <span className={classes.timestamp}>
+          {format(parseISO(createdAt), "HH:mm")}
+        </span>
+      </div>
+    )
+  };
+
+
   const renderMessages = () => {
     if (messagesList.length > 0) {
       const viewMessagesList = messagesList.map((message, index) => {
-        if (message.mediaType === "call_log") {
-          return (
-            <React.Fragment key={message.id}>
-              {renderDailyTimestamps(message, index)}
-              {renderMessageDivider(message, index)}
-              {renderNumberTicket(message, index)}
-              <div className={classes.messageCenter}>
-                <IconButton
-                  variant="contained"
-                  size="small"
-                  id="messageActionsButton"
-                  disabled={message.isDeleted}
-                  className={classes.messageActionsButton}
-                  onClick={(e) => handleOpenMessageOptionsMenu(e, message)}
-                >
-                  <ExpandMore />
-                </IconButton>
-                {isGroup && (
-                  <span className={classes.messageContactName}>
-                    {message.contact?.name}
-                  </span>
-                )}
-                <div>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 17" width="20" height="17">
-                    <path fill="#df3333" d="M18.2 12.1c-1.5-1.8-5-2.7-8.2-2.7s-6.7 1-8.2 2.7c-.7.8-.3 2.3.2 2.8.2.2.3.3.5.3 1.4 0 3.6-.7 3.6-.7.5-.2.8-.5.8-1v-1.3c.7-1.2 5.4-1.2 6.4-.1l.1.1v1.3c0 .2.1.4.2.6.1.2.3.3.5.4 0 0 2.2.7 3.6.7.2 0 1.4-2 .5-3.1zM5.4 3.2l4.7 4.6 5.8-5.7-.9-.8L10.1 6 6.4 2.3h2.5V1H4.1v4.8h1.3V3.2z"></path>
-                  </svg> <span>Chamada de voz/vídeo perdida às {format(parseISO(message.createdAt), "HH:mm")}</span>
-                </div>
-              </div>
-            </React.Fragment>
-          );
-        }
         if (!message.fromMe) {
           return (
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              {renderNumberTicket(message, index)}
-              <div className={classes.messageLeft}>
+              <div
+                className={classes.messageLeft}
+                title={message.queueId && message.queue?.name}
+              >
                 <IconButton
                   variant="contained"
                   size="small"
@@ -745,30 +663,26 @@ const MessagesList = ({ ticketId, isGroup }) => {
                     {message.contact?.name}
                   </span>
                 )}
-                {message.isDeleted && (
 
-                  <div>
-                    <span className={classes.deletedMsg}>
-                      <Block
-                        color=""
-                        fontSize="small"
-                        className={classes.deletedIcon}
-                      />
-                      Mensagem apagada
-                    </span>
-                  </div>
+                {message.mediaUrl && checkMessageMedia(message)}
 
-                )}
-                {(message.mediaUrl || message.mediaType === "location" || message.mediaType === "vcard"
-                  //|| message.mediaType === "multi_vcard" 
-                ) && checkMessageMedia(message)}
-                <div className={classes.textContentItem}>
-                  {message.quotedMsg && renderQuotedMessage(message)}
-                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
-                  <span className={classes.timestamp}>
-                    {format(parseISO(message.createdAt), "HH:mm")}
-                  </span>
-                </div>
+                {message.body.includes('data:image') ? messageLocation(message.body, message.createdAt)
+                  :
+                  isVCard(message.body) ?
+                    <div className={[classes.textContentItem, { marginRight: 0 }]}>
+                      {vCard(message.body)}
+                    </div>
+
+                    :
+
+
+                    (<div className={classes.textContentItem}>
+                      {message.quotedMsg && renderQuotedMessage(message)}
+                      <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                      <span className={classes.timestamp}>
+                        {format(parseISO(message.createdAt), "HH:mm")}
+                      </span>
+                    </div>)}
               </div>
             </React.Fragment>
           );
@@ -777,8 +691,10 @@ const MessagesList = ({ ticketId, isGroup }) => {
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              {renderNumberTicket(message, index)}
-              <div className={classes.messageRight}>
+              <div
+                className={classes.messageRight}
+                title={message.queueId && message.queue?.name}
+              >
                 <IconButton
                   variant="contained"
                   size="small"
@@ -789,9 +705,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
                 >
                   <ExpandMore />
                 </IconButton>
-                {(message.mediaUrl || message.mediaType === "location" || message.mediaType === "vcard"
-                  //|| message.mediaType === "multi_vcard" 
-                ) && checkMessageMedia(message)}
+                {message.mediaUrl && checkMessageMedia(message)}
                 <div
                   className={clsx(classes.textContentItem, {
                     [classes.textContentItemDeleted]: message.isDeleted,
@@ -804,7 +718,15 @@ const MessagesList = ({ ticketId, isGroup }) => {
                       className={classes.deletedIcon}
                     />
                   )}
-                  {message.quotedMsg && renderQuotedMessage(message)}
+                  {message.body.includes('data:image') ? messageLocation(message.body, message.createdAt)
+                  :
+                  isVCard(message.body) ?
+                    <div className={[classes.textContentItem]}>
+                      {vCard(message.body)}
+                    </div>
+
+                    :
+                  message.quotedMsg && renderQuotedMessage(message)}
                   <MarkdownWrapper>{message.body}</MarkdownWrapper>
                   <span className={classes.timestamp}>
                     {format(parseISO(message.createdAt), "HH:mm")}
@@ -837,6 +759,28 @@ const MessagesList = ({ ticketId, isGroup }) => {
       >
         {messagesList.length > 0 ? renderMessages() : []}
       </div>
+      {ticket?.channel !== "whatsapp" && (
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            padding: "10px",
+            alignItems: "center",
+            backgroundColor: "#E1F3FB",
+          }}
+        >
+          {/*{ticket?.channel === "facebook" ? (
+            <Facebook small />
+          ) : (
+            <Instagram small />
+          )}
+
+          <span>
+            Você tem 24h para responder após receber uma mensagem, de acordo
+            com as políticas do Facebook.
+          </span>*/}
+        </div>
+      )}
       {loading && (
         <div>
           <CircularProgress className={classes.circleLoading} />

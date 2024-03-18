@@ -19,7 +19,8 @@ import { hash, compare } from "bcryptjs";
 import Ticket from "./Ticket";
 import Queue from "./Queue";
 import UserQueue from "./UserQueue";
-import Whatsapp from "./Whatsapp";
+import Company from "./Company";
+import QuickMessage from "./QuickMessage";
 
 @Table
 class User extends Model<User> {
@@ -48,24 +49,11 @@ class User extends Model<User> {
   @Column
   profile: string;
 
-  @Default("enabled")
   @Column
-  isTricked: string;
+  super: boolean;
 
-  @ForeignKey(() => Whatsapp)
   @Column
-  whatsappId: number;
-
-  @BelongsTo(() => Whatsapp)
-  whatsapp: Whatsapp;
-
-  @Default("00:00")
-  @Column
-  startWork: string;
-
-  @Default("23:59")
-  @Column
-  endWork: string;
+  online: boolean;
 
   @CreatedAt
   createdAt: Date;
@@ -73,11 +61,25 @@ class User extends Model<User> {
   @UpdatedAt
   updatedAt: Date;
 
+  @ForeignKey(() => Company)
+  @Column
+  companyId: number;
+
+  @BelongsTo(() => Company)
+  company: Company;
+
   @HasMany(() => Ticket)
   tickets: Ticket[];
 
   @BelongsToMany(() => Queue, () => UserQueue)
   queues: Queue[];
+
+  @HasMany(() => QuickMessage, {
+    onUpdate: "CASCADE",
+    onDelete: "CASCADE",
+    hooks: true
+  })
+  quickMessages: QuickMessage[];
 
   @BeforeUpdate
   @BeforeCreate

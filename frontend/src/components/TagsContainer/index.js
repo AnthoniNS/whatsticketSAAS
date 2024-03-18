@@ -1,26 +1,33 @@
 import { Chip, Paper, TextField } from "@material-ui/core";
 import Autocomplete from "@material-ui/lab/Autocomplete";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { isArray, isString } from "lodash";
 import toastError from "../../errors/toastError";
 import api from "../../services/api";
 
-export function TagsContainer ({ contact }) {
+export function TagsContainer ({ ticket }) {
 
     const [tags, setTags] = useState([]);
     const [selecteds, setSelecteds] = useState([]);
+    const isMounted = useRef(true);
 
     useEffect(() => {
-        if (contact) {
-            async function fetchData () {
-                await loadTags();
-                if (Array.isArray(contact.tags)) {
-                    setSelecteds(contact.tags);
-                }
-            }
-            fetchData();
+        return () => {
+            isMounted.current = false
         }
-    }, [contact]);
+    }, [])
+
+    useEffect(() => {
+        if (isMounted.current) {
+            loadTags().then(() => {
+                if (Array.isArray(ticket.tags)) {
+                    setSelecteds(ticket.tags);
+                } else {
+                    setSelecteds([]);
+                }
+            });
+        }
+    }, [ticket]);
 
     const createTag = async (data) => {
         try {
@@ -67,7 +74,7 @@ export function TagsContainer ({ contact }) {
             optionsChanged = value;
         }
         setSelecteds(optionsChanged);
-        await syncTags({ contactId: contact.id, tags: optionsChanged });
+        await syncTags({ ticketId: ticket.id, tags: optionsChanged });
     }
 
     return (

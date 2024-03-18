@@ -2,16 +2,19 @@ const rules = {
 	user: {
 		static: [],
 	},
+
 	admin: {
 		static: [
+			"dashboard:view",
 			"drawer-admin-items:view",
 			"tickets-manager:showall",
 			"user-modal:editProfile",
 			"user-modal:editQueues",
-			"user-table:editTricked",
 			"ticket-options:deleteTicket",
-			"ticket-options:transferWhatsapp",
 			"contacts-page:deleteContact",
+			"connections-page:actionButtons",
+			"connections-page:addConnection",
+			"connections-page:editOrDeleteConnection"
 		],
 	},
 };

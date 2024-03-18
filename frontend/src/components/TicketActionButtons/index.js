@@ -11,7 +11,6 @@ import TicketOptionsMenu from "../TicketOptionsMenu";
 import ButtonWithSpinner from "../ButtonWithSpinner";
 import toastError from "../../errors/toastError";
 import { AuthContext } from "../../context/Auth/AuthContext";
-import { Can } from "../Can";
 
 const useStyles = makeStyles(theme => ({
 	actionButtons: {
@@ -20,7 +19,8 @@ const useStyles = makeStyles(theme => ({
 		alignSelf: "center",
 		marginLeft: "auto",
 		"& > *": {
-			margin: theme.spacing(1),
+			marginRight: theme.spacing(1),
+			marginLeft: theme.spacing(1),
 		},
 	},
 }));
@@ -92,9 +92,7 @@ const TicketActionButtons = ({ ticket }) => {
 					>
 						{i18n.t("messagesList.header.buttons.resolve")}
 					</ButtonWithSpinner>
-					<IconButton
-						color="primary"
-						onClick={handleOpenTicketOptionsMenu}>
+					<IconButton onClick={handleOpenTicketOptionsMenu}>
 						<MoreVert />
 					</IconButton>
 					<TicketOptionsMenu
@@ -105,25 +103,17 @@ const TicketActionButtons = ({ ticket }) => {
 					/>
 				</>
 			)}
-			<Can
-				role={user.profile}
-				perform="drawer-admin-items:view"
-				yes={() => (
-					<>
-						{ticket.status === "pending" && (
-							<ButtonWithSpinner
-								loading={loading}
-								size="small"
-								variant="contained"
-								color="primary"
-								onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
-							>
-								{i18n.t("messagesList.header.buttons.accept")}
-							</ButtonWithSpinner>
-						)}
-					</>
-				)}
-			/>
+			{ticket.status === "pending" && (
+				<ButtonWithSpinner
+					loading={loading}
+					size="small"
+					variant="contained"
+					color="primary"
+					onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
+				>
+					{i18n.t("messagesList.header.buttons.accept")}
+				</ButtonWithSpinner>
+			)}
 		</div>
 	);
 };

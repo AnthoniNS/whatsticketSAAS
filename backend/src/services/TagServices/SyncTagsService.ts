@@ -1,26 +1,26 @@
 import Tag from "../../models/Tag";
-import Contact from "../../models/Contact";
-import ContactTag from "../../models/ContactTag";
+import Ticket from "../../models/Ticket";
+import TicketTag from "../../models/TicketTag";
 
 interface Request {
   tags: Tag[];
-  contactId: number;
+  ticketId: number;
 }
 
 const SyncTags = async ({
   tags,
-  contactId
-}: Request): Promise<Contact | null> => {
-  const contact = await Contact.findByPk(contactId, { include: [Tag] });
+  ticketId
+}: Request): Promise<Ticket | null> => {
+  const ticket = await Ticket.findByPk(ticketId, { include: [Tag] });
 
-  const tagList = tags.map(t => ({ tagId: t.id, contactId }));
+  const tagList = tags.map(t => ({ tagId: t.id, ticketId }));
 
-  await ContactTag.destroy({ where: { contactId } });
-  await ContactTag.bulkCreate(tagList);
+  await TicketTag.destroy({ where: { ticketId } });
+  await TicketTag.bulkCreate(tagList);
 
-  contact?.reload();
+  ticket?.reload();
 
-  return contact;
+  return ticket;
 };
 
 export default SyncTags;

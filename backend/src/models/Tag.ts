@@ -7,10 +7,13 @@ import {
   PrimaryKey,
   AutoIncrement,
   BelongsToMany,
+  ForeignKey,
+  BelongsTo,
   HasMany
 } from "sequelize-typescript";
-import Contact from "./Contact";
-import ContactTag from "./ContactTag";
+import Company from "./Company";
+import Ticket from "./Ticket";
+import TicketTag from "./TicketTag";
 
 @Table
 class Tag extends Model<Tag> {
@@ -25,17 +28,27 @@ class Tag extends Model<Tag> {
   @Column
   color: string;
 
+  @HasMany(() => TicketTag)
+  ticketTags: TicketTag[];
+
+  @BelongsToMany(() => Ticket, () => TicketTag)
+  tickets: Ticket[];
+
+  @ForeignKey(() => Company)
+  @Column
+  companyId: number;
+
+  @BelongsTo(() => Company)
+  company: Company;
+
   @CreatedAt
   createdAt: Date;
 
   @UpdatedAt
   updatedAt: Date;
 
-  @BelongsToMany(() => Contact, () => ContactTag)
-  contacts: Array<Contact & { ContactTag: ContactTag }>;
-
-  @HasMany(() => ContactTag)
-  contacttag: ContactTag[];
+  @Column
+  kanban: number;
 }
 
 export default Tag;
